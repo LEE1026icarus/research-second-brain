@@ -1,0 +1,22 @@
+Perceived Usefulness and Generative AI Adoption Intention: A Longitudinal Study
+
+Jane Smith, John Doe
+Journal of Information Systems, 2023
+DOI: 10.1234/jis.2023.0456
+
+Abstract
+The purpose of this study is to examine how perceived usefulness affects generative AI adoption intention among knowledge workers. Drawing on the Technology Acceptance Model, we investigate whether perceived usefulness predicts adoption intention over time. We conducted a longitudinal survey of 512 professionals across three waves. Our results show that perceived usefulness has a significant positive effect on adoption intention. Perceived ease of use also positively influences perceived usefulness. However, the effect of social influence on adoption intention was not significant.
+
+Keywords: generative AI, technology acceptance, perceived usefulness, adoption intention
+
+1. Introduction
+Generative AI tools such as large language models have rapidly entered the workplace. Research Question: Does perceived usefulness affect adoption intention of generative AI among knowledge workers?
+
+2. Methodology
+We used a longitudinal panel design and structural equation modeling to test our hypotheses. Data were collected from 512 respondents.
+
+3. Results
+Perceived usefulness had a significant positive effect on adoption intention (beta = 0.42, p < 0.001).
+
+4. Discussion
+This study contributes to the Technology Acceptance Model literature. A limitation of this study is the reliance on self-reported survey data. Future research should examine organizational-level adoption.

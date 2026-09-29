@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Local knowledge store contents (keep the directory skeleton via .gitkeep)
+/store/raw/*
+!/store/raw/.gitkeep
+/store/structured/*
+!/store/structured/.gitkeep
+/store/index/*
+!/store/index/.gitkeep
+/store/kg/graph.json
+
+# Test / scratch stores
+.tmpstore/
+.clitest/
+
+# OS
+.DS_Store
