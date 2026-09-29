@@ -16,7 +16,8 @@ def test_extractor_pulls_fields():
     assert ex.research_questions
     assert ex.methodology
     assert ex.future_work  # drives open-question detection
-    assert "Technology Acceptance Model" in ex.key_concepts
+    assert "Technology Acceptance Model (TAM)" in ex.theoretical_background
+    assert "Structural Equation Modeling (SEM)" in ex.analysis_methods
 
 
 def test_pipeline_creates_wiki_and_preserves_raw(store, sample_file):

@@ -59,6 +59,26 @@ QUESTION_SECTIONS = [
     "Status",
 ]
 
+THEORY_SECTIONS = [
+    "Definition",
+    "Core Propositions",
+    "Key Constructs",
+    "Applications",
+    "Established Findings",
+    "Conflicting Findings",
+    "Related Papers",
+    "Open Questions",
+]
+
+METHOD_SECTIONS = [
+    "Description",
+    "Typical Use Cases",
+    "Evaluation Metrics",
+    "Known Limitations",
+    "Applications",
+    "Related Papers",
+]
+
 _GENERIC = ["Summary", "Related Pages", "Related Papers"]
 
 _SECTIONS: dict[WikiPageType, list[str]] = {
@@ -66,6 +86,8 @@ _SECTIONS: dict[WikiPageType, list[str]] = {
     WikiPageType.OVERVIEW: OVERVIEW_SECTIONS,
     WikiPageType.PAPER: PAPER_SECTIONS,
     WikiPageType.QUESTION: QUESTION_SECTIONS,
+    WikiPageType.THEORY: THEORY_SECTIONS,
+    WikiPageType.METHOD: METHOD_SECTIONS,
 }
 
 

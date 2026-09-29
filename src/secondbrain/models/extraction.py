@@ -24,6 +24,8 @@ class PaperExtraction(BaseModel):
     year: int | None = None
     journal: str | None = None
     doi: str | None = None
+    language: str | None = None
+    keywords: list[str] = Field(default_factory=list, description="Author-declared keywords.")
 
     # Research context
     purpose: str | None = None

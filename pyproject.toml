@@ -45,6 +45,10 @@ select = ["E", "F", "I", "UP", "B"]
 #        via explicit `.value` and behave identically on 3.11+.
 ignore = ["B008", "UP042"]
 
+[tool.ruff.lint.per-file-ignores]
+# Test fixtures contain long natural-language (Korean) sample text.
+"tests/*" = ["E501"]
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
