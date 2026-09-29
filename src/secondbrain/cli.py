@@ -75,6 +75,10 @@ def ingest(
         console.print(f"  updated: {', '.join(u.updated_pages)}")
     if u.concepts_touched:
         console.print(f"  concepts: {', '.join(u.concepts_touched)}")
+    if u.theories_touched:
+        console.print(f"  theories: {', '.join(u.theories_touched)}")
+    if u.methods_touched:
+        console.print(f"  methods: {', '.join(u.methods_touched)}")
     if u.open_questions:
         console.print(f"  open questions: {len(u.open_questions)}")
 
