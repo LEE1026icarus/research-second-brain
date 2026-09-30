@@ -89,5 +89,6 @@ ruff check src tests
 - [`AGENTS.md`](AGENTS.md) — 에이전트 규칙 (페이지 형식, 작업 절차)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — 구조
 - [`docs/REQUIREMENTS_MAP.md`](docs/REQUIREMENTS_MAP.md) — 요구사항별 구현 상태
+- [`docs/llm-wiki-guide.html`](docs/llm-wiki-guide.html) — 기능을 쉽게 설명한 한 장짜리 안내 (브라우저로 열기)
 
 MIT License.
