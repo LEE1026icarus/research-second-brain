@@ -24,6 +24,7 @@ class Source(BaseModel):
     organization: str | None = None
     publication: str | None = None
     publication_date: date | None = None
+    year: int | None = None
     ingestion_date: datetime = Field(default_factory=datetime.utcnow)
 
     doi: str | None = None
@@ -43,12 +44,19 @@ class Source(BaseModel):
     wiki_page: str | None = Field(default=None, description="Source page written by the agent.")
     compiled_date: datetime | None = None
 
+    # --- reference manager (Zotero) ---
+    zotero_key: str | None = Field(default=None, description="Zotero item key.")
+    zotero_uri: str | None = Field(default=None, description="zotero://select/... link.")
+    citekey: str | None = Field(default=None, description="Citation key (Better BibTeX / Zotero).")
+
     # --- dedup fingerprints (spec §21) ---
     file_hash: str | None = None
 
     def fingerprints(self) -> dict[str, str]:
         """Return the identity signals used for duplicate detection."""
         fp: dict[str, str] = {}
+        if self.zotero_key:
+            fp["zotero"] = self.zotero_key
         if self.doi:
             fp["doi"] = self.doi.lower().strip()
         if self.file_hash:

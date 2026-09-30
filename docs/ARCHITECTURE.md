@@ -33,6 +33,7 @@ src/secondbrain/
 ├── parsing.py          파일 → 쪽별 텍스트 (pypdf, text, html; 파서 추가 지점)
 ├── agents/ingestion.py 등록: 해시, 중복 탐지, raw 복사, structured 생성, 상태 pending
 ├── vault.py            index.md 생성, log.md 기록, lint, 검색
+├── zotero.py           Zotero 읽기 전용 동기화 (local API / web API)
 ├── store/repository.py sources.json, projects.json, graph.json
 ├── models/             Source(상태 포함), Claim, Node/Edge, Idea, ResearchProject, enums
 ├── wiki/page.py        frontmatter/절 파싱 도우미
@@ -54,6 +55,19 @@ src/secondbrain/
 | `orphan` | warn | 들어오는 링크가 없는 페이지 |
 | `needs-text` | warn | 텍스트를 뽑지 못한 자료 (스캔본 등) |
 | `needs-review` / `pending-source` / `index-stale` | info | 검토 대기, 미반영 자료, 목록 갱신 필요 |
+
+## Zotero 동기화
+
+```
+Zotero (서지 정보의 원본, 사용자가 관리)
+   │  local API: http://localhost:23119/api  (또는 api.zotero.org)
+   ▼
+sb zotero sync ── 항목별: 메타데이터 매핑 → 기존 자료 찾기(zotero_key → DOI/URL/제목)
+                 ├─ PDF 있음  → raw/ 복사 + structured/ 파싱 → pending
+                 ├─ PDF 없음  → 서지 정보만 → needs_text (다음 sync에 PDF가 생기면 이어 붙임)
+                 └─ 이미 있음 → 변경 없음 / 수동 등록 자료에 Zotero 정보 연결
+```
+Zotero에는 아무것도 쓰지 않습니다.
 
 ## 앞으로 붙일 부분
 - **파서:** `parsing.py`의 `_PARSERS`에 OpenDataLoader PDF, Docling, HWP 파서를 추가하면 호출부 변경 없이 적용됩니다.

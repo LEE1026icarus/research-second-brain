@@ -54,8 +54,38 @@ Obsidian에서 **`store/` 폴더를 볼트로 엽니다.** (`store/.obsidian/app
 | `sb search <검색어>` | 키워드 검색 |
 | `sb status` | 자료·페이지 수와 검토 대기 목록 |
 | `sb project add/list` | 내 연구 프로젝트 등록 (아이디어 우선순위용) |
+| `sb zotero sync [-c 컬렉션] [-t 태그]` | Zotero에서 논문 가져오기 (서지 정보 + PDF). 여러 번 실행해도 안전 |
+| `sb zotero collections` | Zotero 컬렉션 목록 |
 
 지원 형식: PDF(pypdf), TXT/MD(쪽 표시 인식), HTML. 스캔본은 `needs_text`로 표시됩니다. 더 나은 파서(OpenDataLoader PDF, HWP 등)는 `src/secondbrain/parsing.py`에 추가할 수 있습니다.
+
+## Zotero 연동
+
+논문은 Zotero에서 관리하고, 이 볼트는 Zotero를 **읽기만** 합니다.
+
+1. Zotero 데스크톱 → 설정 → 고급 → **"Allow other applications on this computer to communicate with Zotero"** 켜기
+2. Zotero를 켜 둔 상태에서:
+   ```bash
+   sb zotero collections                 # 컬렉션 확인
+   sb zotero sync -c "Tourism" --dry-run # 가져올 목록 미리 보기
+   sb zotero sync -c "Tourism"           # 가져오기
+   ```
+3. 에이전트에게 "대기 중인 논문 반영해줘"라고 말합니다.
+
+- 제목·저자·연도·학술지·DOI·태그·citekey(Better BibTeX 포함)는 Zotero 값을 씁니다. 에이전트가 원문에서 추측하지 않습니다.
+- PDF 첨부가 없는 항목은 서지 정보만 등록되고(`needs_text`), 나중에 Zotero에 PDF를 붙인 뒤 다시 `sync`하면 자동으로 이어집니다.
+- 같은 논문을 `sb add`로 먼저 넣었어도 DOI·제목으로 찾아 연결하므로 중복되지 않습니다.
+- 논문 페이지에 `zotero://select/...` 링크가 들어가서, Obsidian에서 누르면 Zotero의 해당 항목이 열립니다.
+- Zotero 앱 없이 쓰려면 `--mode web`과 환경변수 `ZOTERO_API_KEY`, `ZOTERO_USER_ID`를 씁니다. 이때 PDF는 Zotero 저장소에 동기화된 것만 받을 수 있습니다. 그룹 라이브러리는 `--group <ID>`.
+
+## 검색
+
+| 누가 | 무엇으로 |
+|---|---|
+| 사용자 | **Obsidian 기본 검색**(Ctrl/Cmd+Shift+F). 필요하면 커뮤니티 플러그인 [Omnisearch](https://github.com/scambier/obsidian-omnisearch)(가중치 검색, PDF 포함)나 [Smart Connections](https://github.com/brianpetro/obsidian-smart-connections)(로컬 임베딩 의미 검색) |
+| 에이전트 | `index.md` → 링크 따라가기 → `sb search` / `grep`. 별칭(`aliases`)으로도 검색 |
+
+사용자용 검색은 Obsidian 기능으로 충분해서 따로 만들지 않았습니다. Obsidian 플러그인은 에이전트가 호출할 수 없으므로, 페이지가 수천 개로 늘어 에이전트 검색이 부족해지면 그때 의미 검색을 `sb`에 추가합니다.
 
 ## 볼트 구조
 

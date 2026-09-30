@@ -13,11 +13,13 @@ following ``AGENTS.md``. These commands do the parts that must be exact:
 * ``sb search <q>``       keyword search over wiki + ideas
 * ``sb status``           counts and review queue
 * ``sb project add/list`` personal research context (spec §29)
+* ``sb zotero sync``      import papers (metadata + PDF) from Zotero
 """
 
 from __future__ import annotations
 
 import json
+import os
 from collections import Counter
 from pathlib import Path
 
@@ -27,6 +29,7 @@ from rich.markup import escape
 from rich.table import Table
 
 from . import vault
+from . import zotero as zot
 from .agents import IngestionAgent
 from .config import resolve_store
 from .models import CompileStatus, ResearchProject, SourceType
@@ -36,6 +39,8 @@ from .store import ProjectRepository, SourceRepository
 app = typer.Typer(help="Research Second Brain — tools for the LLM wiki agent", no_args_is_help=True)
 project_app = typer.Typer(help="Manage personal research projects (spec §29).")
 app.add_typer(project_app, name="project")
+zotero_app = typer.Typer(help="Import papers from Zotero (read-only).")
+app.add_typer(zotero_app, name="zotero")
 console = Console()
 
 StoreOpt = typer.Option(
@@ -134,6 +139,14 @@ def pending(store: str | None = StoreOpt, as_json: bool = typer.Option(False, "-
                     {
                         "source_id": s.source_id,
                         "title": s.title,
+                        "authors": s.author,
+                        "year": s.year,
+                        "venue": s.publication,
+                        "doi": s.doi,
+                        "url": s.url,
+                        "citekey": s.citekey,
+                        "zotero_key": s.zotero_key,
+                        "zotero_uri": s.zotero_uri,
                         "type": s.source_type.value,
                         "evidence_level": s.evidence_level.value,
                         "status": s.status.value,
@@ -305,6 +318,87 @@ def project_add(
 def project_list(store: str | None = StoreOpt) -> None:
     for p in ProjectRepository(_store(store)).all():
         console.print(f"- {p.project_id}: {p.title}  (RQ: {p.research_question or '-'})")
+
+
+ZoteroMode = typer.Option("local", "--mode", help="local (Zotero desktop) or web (api.zotero.org)")
+ZoteroGroup = typer.Option(None, "--group", help="Group library ID (default: personal library)")
+
+
+def _zotero_client(mode: str, group: str | None) -> zot.ZoteroClient:
+    try:
+        return zot.ZoteroClient.connect(
+            mode,
+            user_id=os.environ.get("ZOTERO_USER_ID"),
+            api_key=os.environ.get("ZOTERO_API_KEY"),
+            group_id=group,
+        )
+    except zot.ZoteroError as exc:
+        console.print(f"[red]error[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+
+@zotero_app.command("collections")
+def zotero_collections(mode: str = ZoteroMode, group: str | None = ZoteroGroup) -> None:
+    """List Zotero collections (name and key)."""
+    client = _zotero_client(mode, group)
+    try:
+        cols = client.collections()
+    except zot.ZoteroError as exc:
+        console.print(f"[red]error[/red] {exc}")
+        raise typer.Exit(1) from exc
+    for c in sorted(cols, key=lambda c: c["data"]["name"]):
+        n = c.get("meta", {}).get("numItems", "?")
+        console.print(escape(f"{c['key']}  {c['data']['name']}  ({n} items)"))
+
+
+@zotero_app.command("sync")
+def zotero_sync(
+    collection: str | None = typer.Option(
+        None, "--collection", "-c", help="Collection name or key"
+    ),
+    tag: str | None = typer.Option(None, "--tag", "-t", help="Only items with this Zotero tag"),
+    mode: str = ZoteroMode,
+    group: str | None = ZoteroGroup,
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be imported"),
+    store: str | None = StoreOpt,
+) -> None:
+    """Import Zotero items as sources (metadata + PDF). Safe to re-run."""
+    st = _store(store)
+    client = _zotero_client(mode, group)
+    try:
+        rep = zot.sync(st, client, collection=collection, tag=tag, dry_run=dry_run)
+    except zot.ZoteroError as exc:
+        console.print(f"[red]error[/red] {exc}")
+        raise typer.Exit(1) from exc
+    label = "would add" if dry_run else "added"
+    for s in rep.added:
+        console.print(
+            f"[green]{label}[/green] " + escape(f"{s.source_id}  {s.title}  ({s.year or 'n.d.'})")
+        )
+    for s in rep.text_attached:
+        console.print("[green]PDF attached[/green] " + escape(f"{s.source_id}  {s.title}"))
+    for s in rep.linked:
+        console.print(
+            "[cyan]linked[/cyan] " + escape(f"{s.source_id}  {s.title}  (already registered)")
+        )
+    for title, reason in rep.skipped:
+        console.print("[yellow]metadata only[/yellow] " + escape(f"{title} — {reason}"))
+    console.print(
+        f"\n{label} {len(rep.added)} · PDF attached {len(rep.text_attached)} · "
+        f"linked {len(rep.linked)} · metadata only {len(rep.metadata_only)} · "
+        f"unchanged {rep.unchanged}"
+    )
+    changed = rep.added or rep.text_attached or rep.linked or rep.metadata_only
+    if not dry_run and changed:
+        bullets = [f"added: `{s.source_id}` {s.title}" for s in rep.added]
+        bullets += [f"pdf attached: `{s.source_id}` {s.title}" for s in rep.text_attached]
+        bullets += [f"linked: `{s.source_id}` {s.title}" for s in rep.linked]
+        bullets += [f"metadata only: `{s.source_id}` {s.title}" for s in rep.metadata_only]
+        where = f"collection {collection}" if collection else "library"
+        if tag:
+            where += f", tag {tag}"
+        vault.append_log(st, "register", f"zotero sync ({where})", bullets)
+        console.print("next: ask the agent to ingest pending sources (`sb pending`)")
 
 
 if __name__ == "__main__":

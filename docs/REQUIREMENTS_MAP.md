@@ -12,6 +12,7 @@
 | 2.4 | 사실·종합·아이디어 구분 | 📝 / ✅ | AGENTS.md §2, `sb lint`의 `idea-in-wiki`·`idea-without-source` |
 | 3.1 | 자료 유형 | ✅ / 📅 | PDF·TXT·MD·HTML ✅, DOCX·PPTX·XLSX·HWP 파서 📅 |
 | 3.2–3.4 | Scholar Alert, Gmail, 웹·뉴스 수집 | 📅 | Phase 2. 메타데이터만 있는 자료는 `needs_text` |
+| (추가) | Zotero 연동 | ✅ | `sb zotero sync`: 서지 정보·PDF 가져오기, 재실행 안전, PDF 나중 첨부 처리 |
 | 4 | Source 메타데이터 | ✅ | `models/source.py`, `index/sources.json` |
 | 5 | 논문 정보 추출 | 📝 | AGENTS.md §3.1 논문 페이지 형식 |
 | 6 | Wiki 페이지 유형 | ✅ | `wiki/` 폴더 (+ `sources/`, `synthesis/`) |
@@ -28,7 +29,7 @@
 | 22 | 변경 추적 | ✅ | `log.md`, 페이지별 Change Log, git |
 | 23 | Obsidian 호환 | ✅ | 볼트 `store/`, `aliases`, 경로형 링크, `.obsidian/app.json` |
 | 24 | Graph 시각화 | ✅ / 📅 | Obsidian Graph View ✅, 필터·커뮤니티 UI 📅 |
-| 25 | 검색 | ✅ / 📅 | 키워드 `sb search` ✅, 의미·그래프 검색 📅 |
+| 25 | 검색 | ✅ / 📅 | 사용자: Obsidian 검색(필요 시 Omnisearch·Smart Connections 플러그인). 에이전트: `sb search` ✅. 에이전트용 의미·그래프 검색 📅 |
 | 26 | 질의응답 | 📝 | AGENTS.md §4.2 (Wiki에 있는 내용으로만 답변, 출처 필수) |
 | 27 | Digest | 📅 | `log.md` 기반 요약 명령 예정. 지금은 `sb status` |
 | 28 | Research Gap 탐지 | 📝 | Overview의 Research Gaps, AGENTS.md §4.4 |

@@ -53,14 +53,16 @@ class SourceRepository:
                 continue
             ex = existing.fingerprints()
             # DOI / file hash / URL are strong identity signals.
-            for key in ("doi", "file_hash", "url"):
+            for key in ("zotero", "doi", "file_hash", "url"):
                 if key in cand and key in ex and cand[key] == ex[key]:
                     return existing
             # Exact normalized title + same first author/year is also a match.
+            same_year = None in (candidate.year, existing.year) or candidate.year == existing.year
             if (
                 "title" in cand
                 and cand.get("title") == ex.get("title")
                 and candidate.author[:1] == existing.author[:1]
+                and same_year
             ):
                 return existing
         return None

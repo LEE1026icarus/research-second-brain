@@ -85,6 +85,9 @@ doi: 10.xxxx/xxxx
 url:
 source_id: src-xxxxxxxxxxxx
 raw: raw/src-xxxxxxxxxxxx.pdf
+citekey: choi2020jst            # Zotero에서 온 자료만
+zotero_key: ABCD1234            # Zotero에서 온 자료만
+zotero: zotero://select/library/items/ABCD1234
 source_type: journal_article
 evidence_level: peer_reviewed
 language: ko
@@ -124,6 +127,8 @@ tags: [paper]
 ## Parsing Notes
 - (필요할 때만) 파싱이 깨져 확인하지 못한 표·그림, 원본 확인이 필요한 부분
 ```
+
+**서지 정보의 출처:** `sb pending --json`에 `zotero_key`가 있는 자료는 Zotero에서 가져온 것입니다. 제목·저자·연도·학술지·DOI·citekey는 **Zotero 값을 그대로** frontmatter에 쓰고, 파싱된 원문과 다르면 Zotero 값을 따르되 차이를 `## Parsing Notes`에 적습니다. Zotero 정보는 사용자가 관리하므로 에이전트가 Zotero를 고치지 않습니다.
 
 `Claims`는 Knowledge Graph의 재료입니다. 논문의 핵심 주장·발견을 하나씩, 반드시 쪽 번호와 함께 씁니다. 탐색적 연구(토픽모델링 등)라면 "A 여행지에서 B 토픽이 도출됨(가중치 0.317)"처럼 도출 결과를 Claim으로 씁니다.
 
@@ -189,7 +194,7 @@ created: 2026-09-29
 ### 4.1 Ingest (새 자료 반영)
 사용자가 "새 자료 반영해줘", "inbox 처리해줘", "이 논문 넣어줘"라고 하면:
 
-1. 필요하면 등록부터 합니다: `sb add <파일> --type journal_article` 또는 `sb add-dir inbox`. 그다음 `sb pending --json`으로 대기 목록을 봅니다.
+1. 필요하면 등록부터 합니다: 논문은 `sb zotero sync [--collection 이름]`, 그 밖의 파일은 `sb add <파일> --type ...` 또는 `sb add-dir inbox`. 그다음 `sb pending --json`으로 대기 목록을 봅니다.
 2. `structured/<source_id>.md`를 **처음부터 끝까지** 읽습니다. 초록만 보고 페이지를 만들지 않습니다.
    - 텍스트가 깨졌으면(2단 섞임, 표 붕괴) 읽을 수 있는 범위만 쓰고 `## Parsing Notes`에 적습니다. 가능하면 `raw/` 원본을 직접 확인합니다.
    - `needs_text` 상태(스캔본 등)는 건너뛰고 사용자에게 알립니다.
@@ -209,7 +214,7 @@ created: 2026-09-29
 자료 하나는 보통 5~15개 페이지를 건드립니다. 여러 자료를 한꺼번에 처리할 때는 **하나씩 끝까지** 처리합니다.
 
 ### 4.2 Query (질문에 답하기)
-1. `index.md`를 먼저 읽고, 관련 페이지를 읽고, 링크를 따라갑니다. `sb search`를 함께 씁니다.
+1. `index.md`를 먼저 읽고, 관련 페이지를 읽고, 링크를 따라갑니다. 키워드는 `sb search`나 `grep -rn`으로 찾습니다(Obsidian 검색창은 사용자용이라 에이전트는 쓸 수 없습니다). `aliases`에 있는 다른 이름·영문명으로도 검색합니다.
 2. Wiki에 있는 내용으로만 답하고, 모든 주장에 출처를 붙입니다.
 3. Wiki가 부족하면 해당 자료의 `structured/` 원문을 읽습니다. 그래도 없으면 **"이 Wiki에는 해당 자료가 없습니다"**라고 말합니다. 사용자가 요청하지 않으면 웹 검색이나 일반 지식으로 채우지 않습니다. 일반 지식을 쓰면 그렇다고 분명히 표시합니다.
 4. 원문을 읽어 새로 알게 된 사실은 해당 페이지에 반영합니다.

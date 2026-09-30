@@ -125,6 +125,7 @@
     <li><a href="#lint">자동 검사</a></li>
     <li><a href="#example">실제 예시</a></li>
     <li><a href="#commands">명령어</a></li>
+    <li><a href="#zotero">Zotero·검색</a></li>
     <li><a href="#start">시작하기</a></li>
     <li><a href="#status">현재 상태</a></li>
   </ul>
@@ -416,7 +417,39 @@
     <tr><td><code>sb status</code></td><td>자료·페이지 수와 <b>검토 대기 목록</b></td></tr>
     <tr><td><code>sb project add "제목" --rq "…"</code></td><td>내 연구 프로젝트 등록 → 아이디어 우선순위에 반영</td></tr>
     <tr><td><code>sb log 종류 제목</code></td><td>log.md에 기록 추가 (질의·아이디어·검토)</td></tr>
+    <tr><td><code>sb zotero sync -c 컬렉션</code></td><td>Zotero에서 논문 가져오기 (서지 정보 + PDF). 여러 번 실행해도 중복 안 됨</td></tr>
+    <tr><td><code>sb zotero collections</code></td><td>Zotero 컬렉션 목록</td></tr>
   </table>
+</section>
+
+<section id="zotero">
+  <h2><span class="num">+</span>Zotero 연동과 검색</h2>
+  <p class="lead">논문은 Zotero에서 관리하고, 이 위키는 Zotero를 <b>읽기만</b> 합니다.</p>
+  <div class="grid g2">
+    <div class="card">
+      <h3 style="margin-top:0">📚 Zotero에서 가져오기</h3>
+      <ol style="margin:0;padding-left:20px">
+        <li>Zotero 설정 → 고급 → <b>“Allow other applications … to communicate with Zotero”</b> 켜기</li>
+        <li><code>sb zotero sync -c "컬렉션 이름"</code></li>
+        <li>에이전트에게 “대기 중인 논문 반영해줘”</li>
+      </ol>
+      <ul style="margin:10px 0 0;padding-left:18px">
+        <li>제목·저자·연도·학술지·DOI·citekey는 <b>Zotero 값을 그대로</b> 사용 → 에이전트가 추측할 일이 없음</li>
+        <li>PDF가 없으면 서지 정보만 등록, 나중에 PDF를 붙이고 다시 sync하면 이어짐</li>
+        <li>여러 번 실행해도 중복되지 않음</li>
+        <li>논문 페이지의 <code>zotero://</code> 링크를 누르면 Zotero 항목이 열림</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">🔍 검색</h3>
+      <p style="margin-top:0"><b>사람</b>은 Obsidian 기본 검색이면 충분합니다. 더 필요하면 플러그인:</p>
+      <ul style="margin:0;padding-left:18px">
+        <li><b>Omnisearch</b> — 더 똑똑한 키워드 검색, PDF 안까지</li>
+        <li><b>Smart Connections</b> — 로컬 임베딩으로 “비슷한 내용” 찾기</li>
+      </ul>
+      <p style="margin-bottom:0"><b>에이전트</b>는 Obsidian 플러그인을 쓸 수 없어서 <code>index.md</code> → 링크 → <code>sb search</code> 순서로 찾습니다. 페이지가 수천 개가 되면 그때 의미 검색을 추가할 계획입니다.</p>
+    </div>
+  </div>
 </section>
 
 <!-- 9 -->
@@ -462,7 +495,9 @@ sb init</pre>
         <li>index.md 자동 목록, log.md 작업 기록</li>
         <li><code>sb lint</code> 자동 검사, 키워드 검색, 검토 대기 목록</li>
         <li>Obsidian 링크·백링크·그래프 뷰</li>
-        <li>테스트 13개 통과</li>
+        <li><b>Zotero 연동</b> — 서지 정보·PDF 가져오기 (<code>sb zotero sync</code>)</li>
+        <li>검색 — 사용자는 Obsidian 검색, 에이전트는 <code>sb search</code></li>
+        <li>테스트 20개 통과</li>
       </ul>
     </div>
     <div class="card bad">
@@ -471,7 +506,9 @@ sb init</pre>
         <li><b>실제 PDF 변환은 아직 검증 안 함</b> (테스트 환경에 PDF가 없었음). 2단 편집·표는 깨질 수 있음</li>
         <li>HWP·DOCX·PPTX 파서 (OpenDataLoader PDF, unhwp 등 후보 조사 완료)</li>
         <li>Gmail·Scholar Alert 자동 수집, 실시간 폴더 감시</li>
-        <li>Claim으로 Knowledge Graph 자동 생성, 의미 검색</li>
+        <li>Claim으로 Knowledge Graph 자동 생성</li>
+        <li>에이전트용 의미 검색 (페이지가 많아지면 추가)</li>
+        <li>Zotero 연동은 가짜 Zotero 서버로만 테스트함 — 실제 Zotero 앱과는 아직 확인 안 함</li>
         <li>에이전트를 실행해야 반영됨 (완전 자동 아님)</li>
         <li>결과 품질은 사용하는 LLM 모델에 따라 달라짐</li>
       </ul>
