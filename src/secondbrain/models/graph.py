@@ -35,6 +35,7 @@ class Edge(BaseModel):
     edge_type: EdgeType
     weight: float = Field(default=1.0, ge=0.0)
     provenance: list[Provenance] = Field(default_factory=list)
+    attrs: dict = Field(default_factory=dict, description="e.g. direction, claim id, context")
 
     def key(self) -> str:
         return f"{self.source}-{self.edge_type.value}-{self.target}"

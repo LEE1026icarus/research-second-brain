@@ -50,14 +50,19 @@ Obsidian에서 **`store/` 폴더를 볼트로 엽니다.** (`store/.obsidian/app
 | `sb done <id> --page ... --touched ... --effect ...` | 반영 완료 표시와 `log.md` 기록 |
 | `sb index` | frontmatter로 `index.md` 재생성 |
 | `sb lint [--json] [--log]` | 끊어진 링크, 출처 없는 서술, 쪽 번호 없는 Claim, 연결 없는 자료, `wiki/`에 섞인 아이디어, frontmatter 오류 검사. error가 있으면 exit 1 |
+| `sb verify [--page ...]` | 인용문·수치가 인용한 쪽에 실제로 있는지 원문과 대조. 지어낸 인용은 error |
+| `sb digest [--days 7] [--save]` | 이번 주 새 자료, 고친 페이지, 충돌·대체 판정, 검토 대기 요약 |
+| `sb refs` | OpenAlex에서 참고문헌 목록을 받아 "내 논문들이 많이 인용하는데 나는 없는 논문" 추천 (`reports/reading-suggestions.md`) |
+| `sb graph` | Claims·인용으로 `kg/graph.json`을 만들고 충돌·빠진 관계·방법/이론 이전·근거 공백 후보를 뽑음 (`reports/synapse-candidates.md`) |
+| `sb discover [--days 90]` | 내 논문이나 프로젝트 핵심 문헌을 새로 인용한 논문, 프로젝트 키워드의 최근 논문 (`reports/discover-<날짜>.md`) |
 | `sb log <kind> <제목> -b ...` | `log.md`에 기록 추가 |
 | `sb search <검색어>` | 키워드 검색 |
 | `sb status` | 자료·페이지 수와 검토 대기 목록 |
-| `sb project add/list` | 내 연구 프로젝트 등록 (아이디어 우선순위용) |
-| `sb zotero sync [-c 컬렉션] [-t 태그]` | Zotero에서 논문 가져오기 (서지 정보 + PDF). 여러 번 실행해도 안전 |
+| `sb project add "제목" --rq ... --keywords ... --refs <DOI>` / `list` | 내 연구 프로젝트 등록 (아이디어 우선순위, 새 논문 알림용) |
+| `sb zotero sync [-c 컬렉션] [-t 태그]` | Zotero에서 논문 가져오기 (서지 정보 + PDF + 내 하이라이트·메모). 여러 번 실행해도 안전 |
 | `sb zotero collections` | Zotero 컬렉션 목록 |
 
-지원 형식: PDF(pypdf), TXT/MD(쪽 표시 인식), HTML. 스캔본은 `needs_text`로 표시됩니다. 더 나은 파서(OpenDataLoader PDF, HWP 등)는 `src/secondbrain/parsing.py`에 추가할 수 있습니다.
+지원 형식: PDF(pypdf), TXT/MD(쪽 표시 인식), HTML. PDF는 머리말·꼬리말의 쪽 번호(예: 121~141)를 찾아 `<!-- page 121 -->`처럼 **학술지 인쇄 쪽 번호**로 표시합니다. 스캔본은 `needs_text`로 표시됩니다. 더 나은 파서(OpenDataLoader PDF, HWP 등)는 `src/secondbrain/parsing.py`에 추가할 수 있습니다.
 
 ## Zotero 연동
 
@@ -77,6 +82,39 @@ Obsidian에서 **`store/` 폴더를 볼트로 엽니다.** (`store/.obsidian/app
 - 같은 논문을 `sb add`로 먼저 넣었어도 DOI·제목으로 찾아 연결하므로 중복되지 않습니다.
 - 논문 페이지에 `zotero://select/...` 링크가 들어가서, Obsidian에서 누르면 Zotero의 해당 항목이 열립니다.
 - Zotero 앱 없이 쓰려면 `--mode web`과 환경변수 `ZOTERO_API_KEY`, `ZOTERO_USER_ID`를 씁니다. 이때 PDF는 Zotero 저장소에 동기화된 것만 받을 수 있습니다. 그룹 라이브러리는 `--group <ID>`.
+
+## Zotero 하이라이트·메모
+
+Zotero PDF 리더에서 칠한 하이라이트와 메모도 `sync`할 때 쪽 번호와 함께 `structured/<id>.annotations.md`로 가져옵니다. 에이전트는 하이라이트한 부분을 우선 반영하고, 메모는 원문 사실이 아닌 "내 메모"로 구분해 논문 페이지의 `## My Highlights`에 씁니다. 이미 반영한 논문에 하이라이트를 더하면 `sb pending`에 `annotations-updated`로 다시 나타납니다.
+
+## 인용 검증 (`sb verify`)
+
+LLM이 쓴 위키에서 가장 위험한 것은 그럴듯한 가짜 출처입니다. `sb verify`는 `(p.128)`처럼 쪽을 인용한 모든 줄에서 **따옴표 안 인용문과 수치**를 뽑아 원문의 그 쪽에 있는지 확인합니다.
+- 원문 어디에도 없는 인용문 → error (`quote-not-found`)
+- 다른 쪽에 있는 인용문·수치 → warning, 실제 쪽 번호를 알려줌
+- 원문에 없는 수치 → warning. 계산한 값이면 `(계산)` 표시
+- 말을 바꿔 쓴 서술(의역)은 판단하지 못합니다. 그 부분은 사용자 검토가 필요합니다.
+
+## Dataview 대시보드
+
+`sb init`이 `store/dashboards/`에 표 4개를 만듭니다: **선행연구 비교표**, **연구 지형**(이론·방법·설계·국가·연도별 논문 수), **검토 대기**, **질문과 아이디어**. Obsidian 커뮤니티 플러그인 [Dataview](https://github.com/blacksmithgu/obsidian-dataview)가 필요합니다.
+논문 페이지 frontmatter의 `theories`, `methods`, `design`, `data_type`, `sample_size`, `country`, `domain` 등을 에이전트가 채우므로, "토픽모델링을 쓰고 종단 데이터를 쓴 논문" 같은 조건 검색을 표로 할 수 있습니다. 새 템플릿으로 바꾸려면 `sb init --update-dashboards`.
+
+## 인용 관계·새 논문 (OpenAlex)
+
+- `sb refs`: 각 논문의 참고문헌 목록을 OpenAlex에서 받아 **내 라이브러리 안의 인용 관계**와 **읽을 만한 논문**(내 논문 여러 편이 인용하는데 내가 없는 논문)을 만듭니다. 국내 학술지처럼 OpenAlex에 참고문헌이 없는 논문은 에이전트가 논문 페이지에 `## References`를 적으면 그것으로 찾습니다.
+- `sb discover`: 내 논문이나 프로젝트 핵심 문헌(`sb project add --refs <DOI>`)을 **최근에 인용한 논문**과 프로젝트 키워드의 최근 논문을 찾습니다. 한 번 보여준 논문은 다음에 빼고(`--all`로 다시 보기), 자동 등록은 하지 않습니다.
+- 키 없이 가볍게 쓸 수 있고, 많이 쓰면 [OpenAlex 무료 API 키](https://openalex.org)를 `OPENALEX_API_KEY`에 넣으세요. OpenAlex 검색이 일시적으로 막히면 DOI 조회만 진행하고 그렇다고 알려줍니다.
+
+## Knowledge Graph와 Synapse 후보 (`sb graph`)
+
+논문 페이지의 `## Claims`(예: `[[개념 A]] → [[개념 B]] | direction: +`)와 인용 관계로 그래프를 만들고, 다음 후보를 뽑아 `reports/synapse-candidates.md`에 씁니다.
+- **충돌**: 같은 A→B 관계인데 논문마다 방향이 다름
+- **빠진 관계**: A→B, B→C는 있는데 A→C를 다룬 논문이 없음
+- **방법·이론 이전**: 한 분야에서만 쓰인 방법·이론
+- **근거 공백**: 어떤 이론의 연구가 모두 횡단 설계뿐 / 최근 몇 년 연구가 없음
+
+이 후보는 기계적으로 뽑은 것이라 그대로 아이디어가 아닙니다. "아이디어 찾아줘"라고 하면 에이전트가 후보를 읽고 쓸 만한 것만 `ideas/`에 근거와 함께 씁니다.
 
 ## 검색
 

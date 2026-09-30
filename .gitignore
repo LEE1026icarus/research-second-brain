@@ -18,7 +18,8 @@ venv/
 !/store/structured/.gitkeep
 /store/index/*
 !/store/index/.gitkeep
-/store/kg/graph.json
+/store/kg/*
+!/store/kg/.gitkeep
 
 # Drop-folder for new sources (may contain copyrighted full texts)
 /inbox/*
@@ -30,6 +31,9 @@ venv/
 /store/ideas/**/*.md
 /store/index.md
 /store/log.md
+/store/dashboards/
+/store/digests/
+/store/reports/
 
 # Obsidian: keep only the shared link settings
 /store/.obsidian/*

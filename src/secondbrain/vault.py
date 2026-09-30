@@ -16,6 +16,7 @@ from pathlib import Path
 
 import yaml
 
+from . import fields
 from .config import StoreConfig
 from .models import CompileStatus
 from .store import SourceRepository
@@ -185,6 +186,12 @@ def build_index(store: StoreConfig) -> str:
             suffix = f" _({'; '.join(meta)})_" if meta else ""
             lines.append(f"- [[{p.rel}|{p.title}]]{summary}{suffix}")
         lines.append("")
+    dashboards = sorted(store.dashboards.glob("*.md")) if store.dashboards.exists() else []
+    if dashboards:
+        lines += [f"## Dashboards ({len(dashboards)}) — Dataview", ""]
+        for d in dashboards:
+            lines.append(f"- [[dashboards/{d.stem}|{d.stem.replace('-', ' ')}]]")
+        lines.append("")
     ideas = [p for p in pages if p.area == "ideas"]
     if ideas:
         lines += [f"## Ideas ({len(ideas)}) — 확정 지식 아님", ""]
@@ -193,6 +200,22 @@ def build_index(store: StoreConfig) -> str:
             lines.append(f"- [[{p.rel}|{p.title}]] _({p.folder}; {status})_")
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
+
+
+TEMPLATE_DIR = Path(__file__).parent / "templates" / "dashboards"
+
+
+def install_dashboards(store: StoreConfig, overwrite: bool = False) -> list[Path]:
+    """Copy Dataview dashboard templates into the vault (skips existing unless overwrite)."""
+    store.dashboards.mkdir(parents=True, exist_ok=True)
+    written = []
+    for tpl in sorted(TEMPLATE_DIR.glob("*.md")):
+        dest = store.dashboards / tpl.name
+        if dest.exists() and not overwrite:
+            continue
+        dest.write_text(tpl.read_text(encoding="utf-8"), encoding="utf-8")
+        written.append(dest)
+    return written
 
 
 def write_index(store: StoreConfig) -> Path:
@@ -241,6 +264,7 @@ def mark_compiled(
     src.status = CompileStatus.COMPILED
     src.wiki_page = page
     src.compiled_date = datetime.now()
+    src.annotations_compiled_hash = src.annotations_hash
     repo.save(src)
     bullets = [f"source: `{source_id}` → [[{page}]]"]
     bullets += [f"touched: [[{t.removesuffix('.md')}]]" for t in touched]
@@ -318,6 +342,9 @@ def lint(store: StoreConfig) -> LintReport:
             continue
         if not inbound[p.rel]:
             report.add("warn", "orphan", p.rel, "no other page links here")
+        if p.folder == "papers" and not p.fm_error:
+            for level, code, detail in fields.check(fm):
+                report.add(level, code, p.rel, detail)
         if p.folder in SOURCE_TYPES:
             linked_from_synthesis = any(
                 src.split("/")[1] in SYNTHESIS_TYPES for src in inbound[p.rel] if "/" in src

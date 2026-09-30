@@ -12,7 +12,10 @@
 | 경로 | 계층 | 누가 쓰나 | 규칙 |
 |---|---|---|---|
 | `raw/` | Raw Source | `sb add` | **절대 수정·삭제 금지** |
-| `structured/<source_id>.md` | 파싱된 원문 텍스트 | `sb add` | 읽기 전용. `<!-- page N -->`로 쪽이 구분됨 |
+| `structured/<source_id>.md` | 파싱된 원문 텍스트 | `sb add` | 읽기 전용. `<!-- page N -->`로 쪽이 구분됨. 첫 줄 `page numbers:`가 `printed`/`pdf-labels`/`markers`면 N은 학술지 인쇄 쪽 번호, `physical`이면 PDF의 몇 번째 쪽인지입니다 |
+| `structured/<source_id>.annotations.md` | 사용자의 Zotero 하이라이트·메모 | `sb zotero sync` | 읽기 전용. 하이라이트 문구는 원문 인용, "내 메모"는 사용자 의견 |
+| `reports/` | 기계가 만든 후보 목록 | `sb refs`, `sb graph`, `sb discover` | 읽을 거리·연결 후보. **지식도 아이디어도 아님** |
+| `dashboards/` | Dataview 표 | `sb init` | 사용자가 자유롭게 수정 |
 | `wiki/papers/`, `wiki/sources/` | Structured Source | 에이전트 | 한 자료당 한 페이지. **원문에서 확인한 내용만** (Source Fact) |
 | `wiki/concepts/`, `theories/`, `methods/`, `datasets/`, `technologies/`, `researchers/`, `organizations/`, `topics/`, `overviews/` | Wiki Knowledge | 에이전트 | 여러 자료를 합친 설명 (Synthesis). 모든 서술에 출처 |
 | `wiki/questions/` | 열린 질문 | 에이전트 | 논문이 제기했거나 자료 사이에서 드러난 질문 |
@@ -35,7 +38,9 @@
 - 형식: `([[wiki/papers/<slug>|저자 외, 연도]], p.128)`. 쪽을 모르면 `§5.2`처럼 절을 씁니다.
 - 쪽 번호는 `structured/` 파일의 `<!-- page N -->` 표시에서 읽습니다. **추측해서 쓰지 않습니다.**
 - `wiki/` 아래 Synthesis 페이지의 목록 항목(`- ...`)은 **모두** 논문·자료 페이지 링크를 포함해야 합니다. `sb lint`가 검사합니다.
-- 원문 인용은 짧게(한두 문장) 하고 `> "..." (p.N)` 형식을 씁니다. 단락 전체를 옮기지 않습니다(저작권).
+- 원문 인용은 짧게(한두 문장) 하고 `> "..." (p.N)` 형식을 씁니다. 단락 전체를 옮기지 않습니다(저작권). 인용문은 원문과 **글자 그대로** 같아야 합니다(`sb verify`가 대조합니다).
+- 원문 수치를 합치거나 빼서 만든 값은 계산식과 함께 `(계산)`을 붙입니다. 예: `부정 37.0% + 강한 부정 14.2% = 51.2% (계산)`
+- 한 줄에 여러 쪽의 내용을 섞을 때는 내용 바로 뒤에 해당 쪽을 적습니다. 예: `표본 454명 (p.126), 토픽 5개 (p.128)`
 
 ### 사실·종합·아이디어 구분
 - `wiki/papers/`, `wiki/sources/`: 원문에 적힌 것만 씁니다. 해석을 붙이려면 `(해석)`이라고 표시합니다.
@@ -92,6 +97,18 @@ source_type: journal_article
 evidence_level: peer_reviewed
 language: ko
 keywords: [저자 주제어]
+# --- 구조화 필드 (Dataview 표·sb graph용, 원문에 없으면 비워 둠) ---
+research_type: computational   # quantitative | qualitative | mixed | computational | review | conceptual
+design: text-mining            # cross-sectional | longitudinal | panel | experiment | quasi-experiment | case-study | text-mining | meta-analysis | systematic-review | simulation | design-science | other
+theories: [Expectancy-Disconfirmation Theory]   # 이론 페이지의 영문 표준명
+methods: [Joint Sentiment Topic Model, Latent Dirichlet Allocation]   # 방법 페이지의 영문 표준명
+data_type: [text]              # survey | experiment | interview | archival | text | log | panel | secondary | observation | simulation | other
+data_source: "'불편함' 앱 후기"
+sample_size: 454               # 정수. 여러 표본이면 주 분석 표본
+unit_of_analysis: document     # individual | team | organization | industry | country | document | other
+country: [KR]                  # ISO 2자리
+period: "2018"
+domain: [tourism]              # 영문 소문자 분야명. 같은 분야는 같은 이름으로
 summary: 한 줄 요약
 tags: [paper]
 ---
@@ -116,7 +133,13 @@ tags: [paper]
 - 주요 결과, 유의한 관계, 비유의 관계, 효과 방향, 효과크기 — p.N. 표는 핵심만 옮깁니다.
 
 ## Claims
-- **C1** 주어 → 대상 | direction: + / − / 0 / mixed | sig: 유의 여부 | effect: 효과크기 | context: 맥락·모집단 | method: 방법 | confidence: high / medium / low | p.N
+- **C1** [[wiki/concepts/a|A]] → [[wiki/concepts/b|B]] | direction: + / − / 0 / mixed | sig: 유의 여부 | effect: 효과크기 | context: 맥락·모집단 | method: 방법 | confidence: high / medium / low | p.N
+
+## My Highlights
+- (Zotero 하이라이트가 있을 때만) 사용자가 표시한 부분과 메모를 요약하고, 본문 어느 절에 반영했는지 적습니다 — p.N
+
+## References
+- 저자 (연도) | 제목 | 학술지 | doi: 10.xxxx/xxxx   ← `sb refs`가 OpenAlex에서 참고문헌을 못 찾았을 때만
 
 ## Discussion
 - 학문적 기여 / 실무적 기여 / 한계 / 향후 연구 — p.N
@@ -130,7 +153,7 @@ tags: [paper]
 
 **서지 정보의 출처:** `sb pending --json`에 `zotero_key`가 있는 자료는 Zotero에서 가져온 것입니다. 제목·저자·연도·학술지·DOI·citekey는 **Zotero 값을 그대로** frontmatter에 쓰고, 파싱된 원문과 다르면 Zotero 값을 따르되 차이를 `## Parsing Notes`에 적습니다. Zotero 정보는 사용자가 관리하므로 에이전트가 Zotero를 고치지 않습니다.
 
-`Claims`는 Knowledge Graph의 재료입니다. 논문의 핵심 주장·발견을 하나씩, 반드시 쪽 번호와 함께 씁니다. 탐색적 연구(토픽모델링 등)라면 "A 여행지에서 B 토픽이 도출됨(가중치 0.317)"처럼 도출 결과를 Claim으로 씁니다.
+`Claims`는 Knowledge Graph의 재료입니다(`sb graph`). 관계형 Claim의 양 끝(주어·대상)은 **가능하면 개념·변수 페이지 링크**로 씁니다. 그래야 다른 논문의 같은 개념과 한 노드로 묶여 충돌이나 빠진 관계를 찾을 수 있습니다. `A → B → C`처럼 이어 쓸 수 있고, 관계가 아닌 발견은 화살표 없이 씁니다. 논문의 핵심 주장·발견을 하나씩, 반드시 쪽 번호와 함께 씁니다. 탐색적 연구(토픽모델링 등)라면 "A 여행지에서 B 토픽이 도출됨(가중치 0.317)"처럼 도출 결과를 Claim으로 씁니다.
 
 ### 3.2 기타 자료 페이지 `wiki/sources/<slug>.md`
 논문 페이지와 같되 `type: source`, 그리고 `organization`, `publication_date`를 씁니다. 해당하지 않는 절(Variables 등)은 뺍니다.
@@ -198,6 +221,8 @@ created: 2026-09-29
 2. `structured/<source_id>.md`를 **처음부터 끝까지** 읽습니다. 초록만 보고 페이지를 만들지 않습니다.
    - 텍스트가 깨졌으면(2단 섞임, 표 붕괴) 읽을 수 있는 범위만 쓰고 `## Parsing Notes`에 적습니다. 가능하면 `raw/` 원본을 직접 확인합니다.
    - `needs_text` 상태(스캔본 등)는 건너뛰고 사용자에게 알립니다.
+   - `annotations_file`이 있으면 함께 읽습니다. 사용자가 하이라이트한 부분은 **우선 반영**하고, "내 메모"는 원문 사실이 아니라 사용자 의견이므로 `(내 메모)`라고 표시해 `## My Highlights`에만 씁니다.
+   - `sb pending`의 reason이 `annotations-updated`이면 이미 반영한 논문에 하이라이트가 추가·변경된 것입니다. 바뀐 하이라이트만 반영하고 `sb done`을 다시 실행합니다.
 3. 같은 연구의 다른 판(프리프린트와 게재본 등)이 이미 있는지 `index.md`에서 확인합니다. 있으면 기존 페이지에 합치고 그렇게 기록합니다.
 4. 자료 페이지(`wiki/papers/` 또는 `wiki/sources/`)를 3.1 형식으로 씁니다.
 5. 영향받는 개념·이론·방법·데이터셋을 정합니다. 기준은 **이 자료에서 핵심적으로 다루는 것**이고, 지나가듯 언급된 것은 페이지를 만들지 않습니다.
@@ -207,7 +232,7 @@ created: 2026-09-29
 7. 관련 Overview를 갱신합니다. 없고 주제가 뚜렷하면 새로 만들고 `review: pending`을 붙입니다. 목록이 아니라 통합 서술로 씁니다.
 8. 향후 연구·한계·자료 사이의 공백에서 열린 질문을 `wiki/questions/`에 만들거나 갱신합니다.
 9. 자료 페이지의 `Related Pages`와 대상 페이지들의 `Related Papers`가 서로 연결되게 합니다. **연결되지 않은 자료 페이지는 반영된 것이 아닙니다.**
-10. `sb index`를 실행한 뒤 `sb lint`를 실행하고, error가 없어질 때까지 고칩니다. warning도 가능한 한 고칩니다.
+10. `sb index`, `sb lint`, `sb verify`를 차례로 실행하고 error가 없어질 때까지 고칩니다. warning도 가능한 한 고칩니다. `sb verify`의 `quote-not-found`는 지어낸 인용일 가능성이 높으니 반드시 원문을 다시 확인합니다. `number-other-page`는 쪽 번호를 바로잡고, `number-not-found`는 계산값이면 `(계산)`을, 아니면 원문을 다시 확인합니다.
 11. `sb done <source_id> --page wiki/papers/<slug> --touched <페이지> ... --effect "<페이지>: <효과> — <이유>" ...`를 실행합니다.
 12. 사용자에게 보고합니다: 한 줄 요약, 만든 페이지와 고친 페이지, 판정한 효과, 검토가 필요한 항목, 파싱 문제.
 
@@ -229,7 +254,8 @@ created: 2026-09-29
 
 ### 4.4 Synapse / Idea (연결과 아이디어 찾기)
 사용자가 요청할 때만 합니다("연결 찾아줘", "아이디어 뽑아줘").
-1. Overview, Claims, 열린 질문, `index/projects.json`(사용자의 연구 프로젝트)을 읽습니다.
+1. `sb refs`와 `sb graph`를 실행하고 `reports/synapse-candidates.md`, `reports/reading-suggestions.md`를 읽습니다. 이 후보들은 기계적으로 뽑은 것이므로 **그대로 아이디어가 되지 않습니다.** 근거 페이지를 직접 읽고 판단합니다.
+   그다음 Overview, Claims, 열린 질문, `index/projects.json`(사용자의 연구 프로젝트)을 읽습니다.
 2. 요구사항 §13의 유형으로 후보를 찾습니다:
    - Missing Edge: A→B, B→C는 있는데 A→C 연구가 없음
    - Contradiction: 같은 관계에 대해 다른 결과
@@ -242,6 +268,11 @@ created: 2026-09-29
 6. 사용자가 평가하면 `status`와 `User Feedback`을 갱신합니다. rejected는 `ideas/rejected/`로 옮기고 이유를 남깁니다. 반복되는 거절 이유는 이 파일의 규칙으로 추가할지 제안합니다.
 7. `sb log idea ...`로 기록합니다.
 
+### 4.5 정기 점검 (사용자가 "이번 주 정리해줘"라고 할 때)
+1. `sb zotero sync`로 새 논문과 하이라이트를 가져오고, 대기 중인 자료를 4.1대로 반영합니다.
+2. `sb digest --save`로 이번 주 변화를 요약하고, 충돌·대체·축소 판정은 따로 짚어 보고합니다.
+3. `sb discover`로 새 논문 후보를 찾아 사용자 프로젝트와 관련된 것 5편 이내를 골라 이유와 함께 추천합니다. 추천 논문은 등록하지 않고, 사용자가 Zotero에 넣으면 다음 동기화에서 들어옵니다.
+
 ## 5. 하지 말 것
 - `raw/`, `structured/`, `index.md`, `index/*.json` 직접 수정
 - 초록·메타데이터·파일명만 보고 자료 페이지 작성. 메타데이터만 있는 자료는 사용자에게 알리고 대기
@@ -249,3 +280,5 @@ created: 2026-09-29
 - 아이디어·가설을 `wiki/`에 사실처럼 기록
 - 기존 서술 삭제, 충돌 숨기기
 - 이유 없이 한 번에 여러 자료를 대충 처리
+- `reports/`의 후보나 추천 논문을 확인 없이 위키 사실이나 아이디어로 옮기기
+- 사용자의 "내 메모"를 원문 사실처럼 쓰기

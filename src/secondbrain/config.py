@@ -53,6 +53,11 @@ class StoreConfig:
         return self.kg / "graph.json"
 
     @property
+    def dashboards(self) -> Path:
+        """Dataview dashboards (Obsidian); installed by `sb init`."""
+        return self.root / "dashboards"
+
+    @property
     def index_md(self) -> Path:
         """Content catalog the agent reads first (Karpathy LLM-Wiki pattern)."""
         return self.root / "index.md"
@@ -69,13 +74,27 @@ class StoreConfig:
     def ensure(self) -> None:
         """Create the full directory tree if it does not exist."""
         wiki_types = [
-            "papers", "sources", "concepts", "theories", "methods", "datasets",
-            "researchers", "organizations", "technologies", "topics",
-            "overviews", "questions", "synthesis",
+            "papers",
+            "sources",
+            "concepts",
+            "theories",
+            "methods",
+            "datasets",
+            "researchers",
+            "organizations",
+            "technologies",
+            "topics",
+            "overviews",
+            "questions",
+            "synthesis",
         ]
         idea_kinds = [
-            "emerging", "research-questions", "hypotheses",
-            "method-transfer", "domain-transfer", "rejected",
+            "emerging",
+            "research-questions",
+            "hypotheses",
+            "method-transfer",
+            "domain-transfer",
+            "rejected",
         ]
         for d in (self.raw, self.structured, self.kg, self.index):
             d.mkdir(parents=True, exist_ok=True)

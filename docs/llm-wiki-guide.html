@@ -126,6 +126,7 @@
     <li><a href="#example">실제 예시</a></li>
     <li><a href="#commands">명령어</a></li>
     <li><a href="#zotero">Zotero·검색</a></li>
+    <li><a href="#more">검증·그래프·알림</a></li>
     <li><a href="#start">시작하기</a></li>
     <li><a href="#status">현재 상태</a></li>
   </ul>
@@ -419,6 +420,11 @@
     <tr><td><code>sb log 종류 제목</code></td><td>log.md에 기록 추가 (질의·아이디어·검토)</td></tr>
     <tr><td><code>sb zotero sync -c 컬렉션</code></td><td>Zotero에서 논문 가져오기 (서지 정보 + PDF). 여러 번 실행해도 중복 안 됨</td></tr>
     <tr><td><code>sb zotero collections</code></td><td>Zotero 컬렉션 목록</td></tr>
+    <tr><td><code>sb verify</code></td><td>인용문·수치가 인용한 쪽 원문에 실제로 있는지 대조</td></tr>
+    <tr><td><code>sb digest --save</code></td><td>이번 주 변화 요약 (충돌·대체 판정 강조)</td></tr>
+    <tr><td><code>sb refs</code></td><td>OpenAlex 참고문헌 → 읽을 만한 논문 추천</td></tr>
+    <tr><td><code>sb graph</code></td><td>Knowledge Graph 생성 + 충돌·빠진 관계·이전 가능성 후보</td></tr>
+    <tr><td><code>sb discover</code></td><td>내 논문·핵심 문헌을 새로 인용한 논문, 키워드 최근 논문</td></tr>
   </table>
 </section>
 
@@ -448,6 +454,53 @@
         <li><b>Smart Connections</b> — 로컬 임베딩으로 “비슷한 내용” 찾기</li>
       </ul>
       <p style="margin-bottom:0"><b>에이전트</b>는 Obsidian 플러그인을 쓸 수 없어서 <code>index.md</code> → 링크 → <code>sb search</code> 순서로 찾습니다. 페이지가 수천 개가 되면 그때 의미 검색을 추가할 계획입니다.</p>
+    </div>
+  </div>
+</section>
+
+<section id="more">
+  <h2><span class="num">+</span>믿을 수 있게, 연결되게, 놓치지 않게</h2>
+  <p class="lead">최근 추가한 기능입니다. 모두 코드가 <b>후보와 검사 결과</b>만 만들고, 위키와 아이디어는 에이전트가 근거를 확인한 뒤 씁니다.</p>
+  <div class="grid g2">
+    <div class="card">
+      <h3 style="margin-top:0">✅ 인용 검증 <code>sb verify</code></h3>
+      <p style="margin-top:0">위키의 <code>(p.128)</code>가 붙은 모든 줄에서 따옴표 인용문과 수치를 뽑아, 원문의 그 쪽에 실제로 있는지 대조합니다.</p>
+      <ul style="margin:0;padding-left:18px">
+        <li>어디에도 없는 인용문 → <b>오류</b> (지어낸 인용 의심)</li>
+        <li>다른 쪽에 있는 수치 → 경고 + 실제 쪽 번호</li>
+        <li>계산한 수치는 <code>(계산)</code> 표시</li>
+      </ul>
+      <div class="callout ok" style="margin-top:10px">실제로 최윤진 외(2020) 페이지에서 제 실수 3건을 찾았습니다: 표가 다음 쪽에 있던 가중치 0.257, 계산값 51.2% 미표시, 다른 쪽 내용이 섞인 Claim.</div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">🖍 Zotero 하이라이트·메모</h3>
+      <p style="margin-top:0">Zotero PDF 리더에서 칠한 부분과 메모를 쪽 번호와 함께 가져옵니다. 에이전트는 <b>하이라이트한 부분을 우선</b> 반영하고, 메모는 “내 메모”로 원문 사실과 구분합니다. 나중에 하이라이트를 더하면 그 논문이 다시 반영 대기에 올라옵니다.</p>
+      <h3>📊 Dataview 대시보드</h3>
+      <p style="margin:0">논문마다 이론·방법·설계·표본 수·국가·분야를 frontmatter에 기록해서, <b>선행연구 비교표</b>와 “이론·방법별 논문 수” 표가 자동으로 만들어집니다.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">🔗 인용 관계·읽을 논문 <code>sb refs</code></h3>
+      <p style="margin-top:0">OpenAlex에서 참고문헌 목록을 받아 <b>“내 논문 여러 편이 인용하는데 나는 없는 논문”</b>을 추천하고, 내 라이브러리 안의 인용 관계를 그래프에 넣습니다.</p>
+      <p style="margin:0;color:var(--muted);font-size:.92rem">최윤진 외(2020)는 OpenAlex에 참고문헌이 없어, 에이전트가 적은 참고문헌 목록으로 Oliver(1980) 등 4편을 찾았습니다.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">🕸 Synapse 후보 <code>sb graph</code></h3>
+      <ul style="margin:0;padding-left:18px">
+        <li><b>충돌</b>: 같은 A→B인데 논문마다 방향이 다름</li>
+        <li><b>빠진 관계</b>: A→B, B→C는 있는데 A→C 연구 없음</li>
+        <li><b>이전</b>: 한 분야에서만 쓰인 방법·이론</li>
+        <li><b>공백</b>: 횡단 설계뿐 / 최근 연구 없음</li>
+      </ul>
+      <p style="margin:10px 0 0;color:var(--muted);font-size:.92rem">“아이디어 찾아줘”라고 하면 에이전트가 이 후보를 읽고 쓸 만한 것만 근거와 함께 <code>ideas/</code>에 씁니다.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">🔔 새 논문 알림 <code>sb discover</code></h3>
+      <p style="margin-top:0">내 논문이나 프로젝트 핵심 문헌을 <b>최근에 인용한 논문</b>과 프로젝트 키워드의 최근 논문을 찾습니다. 한 번 보여준 논문은 다음부터 빼고, 자동으로 등록하지 않습니다.</p>
+      <p style="margin:0;color:var(--muted);font-size:.92rem">테스트: JST 원 논문(Lin &amp; He, 2009)을 핵심 문헌으로 등록 → 2026년에 나온 인용 논문 등 10편.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">🗞 주간 Digest <code>sb digest</code></h3>
+      <p style="margin:0">이번 주 새 자료, 고친 페이지, <b>충돌·대체·축소 판정</b>, 검토 대기, 하이라이트가 바뀐 논문을 log.md 기록만으로 요약합니다. 기록되지 않은 변화는 지어내지 않습니다.</p>
     </div>
   </div>
 </section>
@@ -497,7 +550,15 @@ sb init</pre>
         <li>Obsidian 링크·백링크·그래프 뷰</li>
         <li><b>Zotero 연동</b> — 서지 정보·PDF 가져오기 (<code>sb zotero sync</code>)</li>
         <li>검색 — 사용자는 Obsidian 검색, 에이전트는 <code>sb search</code></li>
-        <li>테스트 20개 통과</li>
+        <li><b>Zotero 하이라이트·메모</b> 가져오기</li>
+        <li><b>인용 검증</b> <code>sb verify</code> — 인용문·수치를 원문 쪽과 대조</li>
+        <li>PDF 머리말·꼬리말에서 <b>학술지 쪽 번호</b> 자동 인식</li>
+        <li><b>Dataview 대시보드</b> 4종 (선행연구 비교표 등)</li>
+        <li><b>주간 Digest</b> <code>sb digest</code></li>
+        <li><b>인용 관계·읽을 논문 추천</b> <code>sb refs</code> (OpenAlex)</li>
+        <li><b>Knowledge Graph·Synapse 후보</b> <code>sb graph</code></li>
+        <li><b>새 논문 알림</b> <code>sb discover</code></li>
+        <li>테스트 36개 통과</li>
       </ul>
     </div>
     <div class="card bad">
@@ -506,9 +567,10 @@ sb init</pre>
         <li><b>실제 PDF 변환은 아직 검증 안 함</b> (테스트 환경에 PDF가 없었음). 2단 편집·표는 깨질 수 있음</li>
         <li>HWP·DOCX·PPTX 파서 (OpenDataLoader PDF, unhwp 등 후보 조사 완료)</li>
         <li>Gmail·Scholar Alert 자동 수집, 실시간 폴더 감시</li>
-        <li>Claim으로 Knowledge Graph 자동 생성</li>
+        <li>의미 유사도 기반 연결 후보 (지금은 Claims·frontmatter·인용 기반)</li>
         <li>에이전트용 의미 검색 (페이지가 많아지면 추가)</li>
-        <li>Zotero 연동은 가짜 Zotero 서버로만 테스트함 — 실제 Zotero 앱과는 아직 확인 안 함</li>
+        <li>Zotero 연동(하이라이트 포함)은 가짜 Zotero 서버로만 테스트함 — 실제 Zotero 앱과는 아직 확인 안 함</li>
+        <li>OpenAlex에 참고문헌이 없는 논문(국내 학술지 다수)은 에이전트가 참고문헌을 적어야 함</li>
         <li>에이전트를 실행해야 반영됨 (완전 자동 아님)</li>
         <li>결과 품질은 사용하는 LLM 모델에 따라 달라짐</li>
       </ul>

@@ -120,3 +120,45 @@ def test_index_and_done_update_status_and_log(store, tmp_path):
     index = vault.build_index(store)
     assert "[[wiki/papers/테스트-논문|테스트 논문]]" in index and "홍길동 외 (2020)" in index
     assert "## Concepts (1)" in index
+
+
+def test_paper_fields_are_checked():
+    from secondbrain import fields
+
+    good = {
+        "research_type": "computational",
+        "design": "text-mining",
+        "theories": ["EDT"],
+        "methods": ["JST"],
+        "data_type": ["text"],
+        "data_source": "app",
+        "sample_size": 454,
+        "unit_of_analysis": "document",
+        "country": ["KR"],
+        "period": "2018",
+        "domain": ["tourism"],
+    }
+    assert fields.check(good) == []
+    assert fields.check({**good, "sample_size": None}) == []  # empty = not reported
+    bad = {
+        **good,
+        "design": "survey",
+        "methods": "JST",
+        "sample_size": "454",
+        "data_type": ["tweets"],
+    }
+    codes = [(lvl, code) for lvl, code, _ in fields.check(bad)]
+    assert codes.count(("warn", "bad-field")) == 4
+    partial = {k: v for k, v in good.items() if k != "design"}
+    assert fields.check(partial) == [("info", "missing-field", "design")]
+
+
+def test_dashboards_installed_once_and_listed_in_index(store):
+    written = vault.install_dashboards(store)
+    assert {p.name for p in written} >= {"선행연구-비교표.md", "연구-지형.md"}
+    (store.dashboards / "연구-지형.md").write_text("내가 고친 내용", encoding="utf-8")
+    assert vault.install_dashboards(store) == []  # user edits are kept
+    assert (store.dashboards / "연구-지형.md").read_text(encoding="utf-8") == "내가 고친 내용"
+    assert "[[dashboards/선행연구-비교표|" in vault.build_index(store)
+    body = (vault.TEMPLATE_DIR / "선행연구-비교표.md").read_text(encoding="utf-8")
+    assert "```dataview" in body and 'FROM "wiki/papers"' in body

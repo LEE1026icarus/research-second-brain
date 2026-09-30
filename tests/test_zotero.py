@@ -210,3 +210,54 @@ def test_unreachable_zotero_gives_clear_error():
     client = zot.ZoteroClient("http://127.0.0.1:9/api/users/0", zot._http_fetch({}), local=True)
     with pytest.raises(zot.ZoteroError, match="is Zotero running"):
         client.collections()
+
+
+def _annotation(key, text, *, page="128", comment="", kind="highlight", sort="00007|000100|00200"):
+    return {
+        "key": key,
+        "data": {
+            "key": key,
+            "itemType": "annotation",
+            "annotationType": kind,
+            "annotationText": text,
+            "annotationComment": comment,
+            "annotationColor": "#ffd400",
+            "annotationPageLabel": page,
+            "annotationSortIndex": sort,
+            "tags": [{"tag": "핵심"}],
+        },
+    }
+
+
+def test_highlights_are_imported_and_reopen_compiled_source(store, fake):
+    from secondbrain import vault
+
+    fake.add(_item("K1", "하이라이트 논문", doi="10.1/one"), pdf_text="본문")
+    fake.children["AK1"] = [
+        _annotation("H2", "두 번째", page="130", sort="00009|000001|00001"),
+        _annotation("H1", "물가 0.293", comment="가장 큰 토픽", sort="00007|000100|00200"),
+        _annotation("H3", "", kind="note", page="", comment="전체 메모", sort="00010|0|0"),
+    ]
+    rep = zot.sync(store, fake.client())
+    src = SourceRepository(store).all()[0]
+    assert [s.source_id for s in rep.annotations_updated] == [src.source_id]
+    text = (store.root / src.annotations_file).read_text(encoding="utf-8")
+    assert text.index('"물가 0.293"') < text.index('"두 번째"')  # sorted by position
+    assert "## A1 · p.128 · highlight" in text and "- 내 메모: 가장 큰 토픽" in text
+    assert "## A3 · p.11 · note" in text  # no label → page index + 1
+    assert src.annotation_count == 3
+
+    # Agent compiles; unchanged highlights do not reopen it.
+    page = store.root / "wiki/papers/x.md"
+    page.parent.mkdir(parents=True, exist_ok=True)
+    page.write_text("---\ntype: paper\ntitle: x\n---\n", encoding="utf-8")
+    vault.mark_compiled(store, src.source_id, "wiki/papers/x", [], [])
+    assert not zot.sync(store, fake.client()).annotations_updated
+    assert not SourceRepository(store).get(src.source_id).annotations_changed
+
+    # User adds a highlight in Zotero → source needs the agent again.
+    fake.children["AK1"].append(_annotation("H4", "새 하이라이트", sort="00011|0|0"))
+    assert zot.sync(store, fake.client()).annotations_updated
+    assert SourceRepository(store).get(src.source_id).annotations_changed
+
+    assert not zot.sync(store, fake.client(), annotations=False).annotations_updated

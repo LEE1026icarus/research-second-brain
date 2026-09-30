@@ -48,9 +48,24 @@ class Source(BaseModel):
     zotero_key: str | None = Field(default=None, description="Zotero item key.")
     zotero_uri: str | None = Field(default=None, description="zotero://select/... link.")
     citekey: str | None = Field(default=None, description="Citation key (Better BibTeX / Zotero).")
+    annotations_file: str | None = Field(default=None, description="User highlights/notes.")
+    annotation_count: int = 0
+    annotations_hash: str | None = None
+    annotations_compiled_hash: str | None = Field(
+        default=None, description="annotations_hash at the time the agent last compiled."
+    )
 
     # --- dedup fingerprints (spec §21) ---
     file_hash: str | None = None
+
+    @property
+    def annotations_changed(self) -> bool:
+        """Compiled source whose Zotero highlights/notes changed since the agent read them."""
+        return (
+            self.status == CompileStatus.COMPILED
+            and bool(self.annotations_hash)
+            and self.annotations_hash != self.annotations_compiled_hash
+        )
 
     def fingerprints(self) -> dict[str, str]:
         """Return the identity signals used for duplicate detection."""

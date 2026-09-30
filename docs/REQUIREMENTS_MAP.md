@@ -11,16 +11,17 @@
 | 2.3 | 출처 추적 (쪽·절·인용) | ✅ / 📝 | `structured/`의 쪽 표시, 출처 형식 규칙, `sb lint`의 `uncited`·`claim-without-page` |
 | 2.4 | 사실·종합·아이디어 구분 | 📝 / ✅ | AGENTS.md §2, `sb lint`의 `idea-in-wiki`·`idea-without-source` |
 | 3.1 | 자료 유형 | ✅ / 📅 | PDF·TXT·MD·HTML ✅, DOCX·PPTX·XLSX·HWP 파서 📅 |
-| 3.2–3.4 | Scholar Alert, Gmail, 웹·뉴스 수집 | 📅 | Phase 2. 메타데이터만 있는 자료는 `needs_text` |
-| (추가) | Zotero 연동 | ✅ | `sb zotero sync`: 서지 정보·PDF 가져오기, 재실행 안전, PDF 나중 첨부 처리 |
+| 3.2–3.4 | Scholar Alert, Gmail, 웹·뉴스 수집 | ✅ / 📅 | 알림 대체: `sb discover`(내 논문·핵심 문헌 피인용, 키워드). Gmail·웹 수집 📅 |
+| (추가) | Zotero 연동 | ✅ | `sb zotero sync`: 서지 정보·PDF·하이라이트·메모, 재실행 안전, PDF 나중 첨부 처리 |
+| (추가) | 인용 검증 | ✅ | `sb verify`: 인용문·수치를 인용 쪽 원문과 대조 |
 | 4 | Source 메타데이터 | ✅ | `models/source.py`, `index/sources.json` |
 | 5 | 논문 정보 추출 | 📝 | AGENTS.md §3.1 논문 페이지 형식 |
 | 6 | Wiki 페이지 유형 | ✅ | `wiki/` 폴더 (+ `sources/`, `synthesis/`) |
 | 7 | Ingest 절차 | 📝 | AGENTS.md §4.1 (12단계) |
 | 8, 9 | Overview, Concept 페이지 | 📝 | AGENTS.md §3.3–3.6 |
-| 10, 11 | Knowledge Graph Node/Edge | 🧩 | `models/graph.py`. Claims에서 그래프 생성 📅 Phase 3 |
+| 10, 11 | Knowledge Graph Node/Edge | ✅ | `sb graph`: Claims·페이지 링크·인용으로 `kg/graph.json` (paper/concept/theory/method/dataset/claim/variable, predicts·based_on·uses_method·cites 등) |
 | 12 | Claim 단위 지식 | 📝 / 🧩 | 논문 페이지 `## Claims` 고정 형식, `models/claim.py` |
-| 13 | Synapse Engine | 📝 | AGENTS.md §4.4 (요청 시 에이전트 수행). 그래프 기반 자동 탐지 📅 |
+| 13 | Synapse Engine | ✅ / 📝 | `sb graph`가 충돌·빠진 관계·방법/이론 이전·근거/시간 공백 후보를 뽑고, 에이전트가 판단 (AGENTS.md §4.4). 의미 유사도 후보는 📅 |
 | 14–16 | Idea 형식, 분리, Lifecycle | 📝 / ✅ | AGENTS.md §3.9, `ideas/` 폴더, `sb lint` |
 | 17 | Agent 역할 분리 | 📝 | 한 에이전트가 AGENTS.md의 절차별로 수행. Reviewer 역할은 `sb lint` + 사용자 검토 |
 | 18, 19 | 보수적 Wiki 작성 / 탐색적 Idea | 📝 | AGENTS.md §2, §5 |
@@ -31,8 +32,8 @@
 | 24 | Graph 시각화 | ✅ / 📅 | Obsidian Graph View ✅, 필터·커뮤니티 UI 📅 |
 | 25 | 검색 | ✅ / 📅 | 사용자: Obsidian 검색(필요 시 Omnisearch·Smart Connections 플러그인). 에이전트: `sb search` ✅. 에이전트용 의미·그래프 검색 📅 |
 | 26 | 질의응답 | 📝 | AGENTS.md §4.2 (Wiki에 있는 내용으로만 답변, 출처 필수) |
-| 27 | Digest | 📅 | `log.md` 기반 요약 명령 예정. 지금은 `sb status` |
-| 28 | Research Gap 탐지 | 📝 | Overview의 Research Gaps, AGENTS.md §4.4 |
+| 27 | Digest | ✅ | `sb digest [--days] [--save]` |
+| 28 | Research Gap 탐지 | ✅ / 📝 | `sb graph`: 충돌, 빠진 관계, 종단·인과 근거 부족, 오래된 근거. 국가·산업·모집단 공백은 에이전트 판단 |
 | 29 | 개인 연구 프로젝트 | ✅ / 📝 | `sb project`, 아이디어 우선순위 규칙 |
 | 30 | MCP / API | 📅 | Phase 6 |
 | 31 | 폴더 감시 | ✅ / 📅 | `sb add-dir inbox` ✅, 실시간 감시 📅 |

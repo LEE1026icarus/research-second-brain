@@ -33,7 +33,14 @@ src/secondbrain/
 ├── parsing.py          파일 → 쪽별 텍스트 (pypdf, text, html; 파서 추가 지점)
 ├── agents/ingestion.py 등록: 해시, 중복 탐지, raw 복사, structured 생성, 상태 pending
 ├── vault.py            index.md 생성, log.md 기록, lint, 검색
-├── zotero.py           Zotero 읽기 전용 동기화 (local API / web API)
+├── zotero.py           Zotero 읽기 전용 동기화 (서지 정보, PDF, 하이라이트·메모)
+├── verify.py           인용문·수치를 인용한 쪽의 원문과 대조 (sb verify)
+├── fields.py           논문 frontmatter 구조화 필드 규칙 (Dataview·sb graph용)
+├── digest.py           log.md 기반 주간 요약 (sb digest)
+├── openalex.py         OpenAlex 인용 데이터: 참고문헌·피인용·검색 (sb refs, sb discover)
+├── kg.py               Claims·링크·인용 → kg/graph.json + Synapse 후보 (sb graph)
+├── discover.py         새 논문 후보 (sb discover)
+├── templates/dashboards/  Dataview 대시보드 템플릿 (sb init이 설치)
 ├── store/repository.py sources.json, projects.json, graph.json
 ├── models/             Source(상태 포함), Claim, Node/Edge, Idea, ResearchProject, enums
 ├── wiki/page.py        frontmatter/절 파싱 도우미
@@ -68,6 +75,23 @@ sb zotero sync ── 항목별: 메타데이터 매핑 → 기존 자료 찾기
                  └─ 이미 있음 → 변경 없음 / 수동 등록 자료에 Zotero 정보 연결
 ```
 Zotero에는 아무것도 쓰지 않습니다.
+
+## 인용 검증 흐름
+
+```
+wiki 페이지의 한 줄: … 가중치 0.257 … (p.129–130)
+        │ 인용 그룹(인접한 p.N 묶음) → 소유 자료(앞쪽 논문 링크, 또는 논문 페이지 자신)
+        ▼
+structured/<id>.md 의 <!-- page 129 -->, <!-- page 130 --> 본문
+        │ 인용문: 공백·기호 정규화 후 부분 문자열 비교
+        │ 수치: 쉼표·마이너스 기호 정규화 후 비교 (연도·날짜 제외)
+        ▼
+ok / 다른 쪽에 있음(warn) / 어디에도 없음(인용문 error, 수치 warn) / 인용 쪽이 원문에 없음(error)
+```
+
+## 기계가 만드는 후보와 에이전트의 판단
+
+`sb refs`, `sb graph`, `sb discover`는 `reports/`에 **후보**만 씁니다. 위키와 아이디어는 에이전트가 후보를 읽고 근거를 확인한 뒤 씁니다(AGENTS.md §4.4, §4.5). 코드가 사실이나 아이디어를 직접 만들지 않는다는 원칙은 그대로입니다.
 
 ## 앞으로 붙일 부분
 - **파서:** `parsing.py`의 `_PARSERS`에 OpenDataLoader PDF, Docling, HWP 파서를 추가하면 호출부 변경 없이 적용됩니다.

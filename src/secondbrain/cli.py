@@ -9,9 +9,14 @@ following ``AGENTS.md``. These commands do the parts that must be exact:
 * ``sb done <id> ...``    mark a source compiled and append a log entry
 * ``sb index``            regenerate index.md from page frontmatter
 * ``sb lint``             check links, citations, orphans, idea leakage
+* ``sb verify``           check quotes/numbers against the cited source pages
 * ``sb log ...``          append an entry to log.md
 * ``sb search <q>``       keyword search over wiki + ideas
 * ``sb status``           counts and review queue
+* ``sb digest``           what changed this week (from log.md)
+* ``sb refs``             citations from OpenAlex → reading suggestions
+* ``sb graph``            knowledge graph + Synapse candidates for the agent
+* ``sb discover``         new papers citing my library / matching my projects
 * ``sb project add/list`` personal research context (spec §29)
 * ``sb zotero sync``      import papers (metadata + PDF) from Zotero
 """
@@ -21,6 +26,7 @@ from __future__ import annotations
 import json
 import os
 from collections import Counter
+from datetime import date
 from pathlib import Path
 
 import typer
@@ -28,7 +34,12 @@ from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
 
+from . import digest as digest_mod
+from . import discover as discover_mod
+from . import kg as kg_mod
+from . import openalex as oa_mod
 from . import vault
+from . import verify as verify_mod
 from . import zotero as zot
 from .agents import IngestionAgent
 from .config import resolve_store
@@ -83,9 +94,16 @@ def _register(st, path: Path, source_type: str | None, title: str | None) -> Non
 
 
 @app.command()
-def init(store: str | None = StoreOpt) -> None:
-    """Create an empty vault (folders, index.md, log.md)."""
+def init(
+    store: str | None = StoreOpt,
+    update_dashboards: bool = typer.Option(
+        False, "--update-dashboards", help="Overwrite dashboards with the latest templates"
+    ),
+) -> None:
+    """Create an empty vault (folders, index.md, log.md, Dataview dashboards)."""
     st = _store(store)
+    for path in vault.install_dashboards(st, overwrite=update_dashboards):
+        console.print(f"dashboard: {path.relative_to(st.root)}")
     vault.write_index(st)
     if not st.log_md.exists():
         vault.append_log(st, "note", "vault initialized")
@@ -123,6 +141,12 @@ def add_dir(
     console.print(f"{len(files)} file(s) processed")
 
 
+def _pending_reason(s) -> str:
+    if s.annotations_changed:
+        return "annotations-updated"  # already compiled; re-read the user's highlights/notes
+    return s.status.value
+
+
 @app.command()
 def pending(store: str | None = StoreOpt, as_json: bool = typer.Option(False, "--json")) -> None:
     """List sources the agent has not integrated yet."""
@@ -130,7 +154,7 @@ def pending(store: str | None = StoreOpt, as_json: bool = typer.Option(False, "-
     items = [
         s
         for s in SourceRepository(st).all()
-        if s.status in (CompileStatus.PENDING, CompileStatus.NEEDS_TEXT)
+        if s.status in (CompileStatus.PENDING, CompileStatus.NEEDS_TEXT) or s.annotations_changed
     ]
     if as_json:
         print(
@@ -147,6 +171,9 @@ def pending(store: str | None = StoreOpt, as_json: bool = typer.Option(False, "-
                         "citekey": s.citekey,
                         "zotero_key": s.zotero_key,
                         "zotero_uri": s.zotero_uri,
+                        "annotations_file": s.annotations_file,
+                        "annotation_count": s.annotation_count,
+                        "reason": _pending_reason(s),
                         "type": s.source_type.value,
                         "evidence_level": s.evidence_level.value,
                         "status": s.status.value,
@@ -165,12 +192,12 @@ def pending(store: str | None = StoreOpt, as_json: bool = typer.Option(False, "-
         console.print("nothing pending")
         return
     table = Table(title=f"Pending ({len(items)})")
-    for col in ("source_id", "status", "type", "title", "text_file"):
+    for col in ("source_id", "reason", "type", "title", "text_file"):
         table.add_column(col)
     for s in items:
         table.add_row(
             s.source_id,
-            s.status.value,
+            _pending_reason(s),
             s.source_type.value,
             (s.title or "")[:40],
             s.text_file or "-",
@@ -247,6 +274,43 @@ def lint_cmd(
         raise typer.Exit(1)
 
 
+@app.command("verify")
+def verify_cmd(
+    page: str | None = typer.Option(None, "--page", help="Only this page, e.g. wiki/papers/x"),
+    store: str | None = StoreOpt,
+    as_json: bool = typer.Option(False, "--json"),
+    log_result: bool = typer.Option(False, "--log", help="Append a summary to log.md"),
+) -> None:
+    """Check quoted text and numbers against the cited pages. Exit 1 on errors."""
+    st = _store(store)
+    rep = verify_mod.verify(st, only=page)
+    if as_json:
+        print(json.dumps([f.__dict__ for f in rep.findings], ensure_ascii=False, indent=2))
+    else:
+        order = {"error": 0, "warn": 1, "info": 2}
+        colors = {"error": "red", "warn": "yellow", "info": "cyan"}
+        for f in sorted(rep.findings, key=lambda x: (order[x.level], x.page, x.line)):
+            console.print(
+                f"[{colors[f.level]}]{f.level:5}[/] "
+                + escape(f"{f.code:20} {f.page}:{f.line}  {f.detail}")
+            )
+        console.print(
+            f"\ncitations {rep.citations} · quotes {rep.checked_quotes} · "
+            f"numbers {rep.checked_numbers} · errors {rep.count('error')} · "
+            f"warnings {rep.count('warn')}"
+        )
+    if log_result:
+        counts = Counter(f.code for f in rep.findings)
+        vault.append_log(
+            st,
+            "lint",
+            f"verify: {rep.count('error')} errors, {rep.count('warn')} warnings",
+            [f"{k}: {v}" for k, v in sorted(counts.items())],
+        )
+    if rep.count("error"):
+        raise typer.Exit(1)
+
+
 @app.command()
 def log(
     kind: str = typer.Argument(..., help="query | idea | review | note"),
@@ -269,6 +333,137 @@ def search(query: str, store: str | None = StoreOpt, limit: int = 10) -> None:
         console.print(
             f"[bold]{h.score:3}[/bold] " + escape(f"[[{h.rel}]]  {h.title}\n     {h.snippet}")
         )
+
+
+@app.command()
+def digest(
+    days: int = typer.Option(7, "--days", help="Period length in days (ending today)"),
+    save: bool = typer.Option(False, "--save", help="Also write digests/<date>.md in the vault"),
+    store: str | None = StoreOpt,
+) -> None:
+    """Summarize what changed in the wiki (spec §27)."""
+    st = _store(store)
+    d = digest_mod.build_digest(st, days=days)
+    text = d.render()
+    print(text)
+    if save:
+        out = st.root / "digests" / f"{d.end.isoformat()}.md"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text, encoding="utf-8")
+        console.print(f"[green]wrote[/green] {out.relative_to(st.root)}")
+
+
+def _openalex() -> oa_mod.OpenAlex:
+    return oa_mod.OpenAlex(oa_mod.http_fetch(os.environ.get("OPENALEX_API_KEY")))
+
+
+@app.command()
+def refs(
+    source: str | None = typer.Option(None, "--source", help="Only this source_id"),
+    force: bool = typer.Option(False, "--force", help="Re-fetch even if cached"),
+    limit: int = typer.Option(30, "--limit", help="Suggestions to show"),
+    store: str | None = StoreOpt,
+) -> None:
+    """Fetch reference lists from OpenAlex; write reports/reading-suggestions.md."""
+    st = _store(store)
+    try:
+        rep = oa_mod.refresh_refs(st, _openalex(), only=source, force=force)
+    except oa_mod.OpenAlexError as exc:
+        console.print(f"[red]error[/red] {exc}")
+        raise typer.Exit(1) from exc
+    out = st.root / "reports" / "reading-suggestions.md"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(oa_mod.render_reading_report(st, rep, limit), encoding="utf-8")
+    console.print(
+        f"updated {len(rep.fetched)} · suggestions {len(rep.suggestions)} · "
+        f"links inside library {len(rep.internal)} · unresolved refs {rep.unresolved_refs}"
+    )
+    for msg in rep.search_errors:
+        console.print("[yellow]OpenAlex title search unavailable[/yellow] " + escape(msg))
+    for t in rep.no_references:
+        console.print("[yellow]no reference list[/yellow] " + escape(t))
+    for t in rep.not_found:
+        console.print("[yellow]not in OpenAlex[/yellow] " + escape(t))
+    for w in rep.suggestions[:10]:
+        console.print(
+            f"  {len(w['cited_by_mine'])}× "
+            + escape(f"{w.get('title')} ({w.get('year')}) — cited {w.get('cited_by_count')}")
+        )
+    console.print(f"[green]wrote[/green] {out.relative_to(st.root)}")
+    if rep.fetched:
+        vault.append_log(
+            st,
+            "note",
+            f"refs: {len(rep.fetched)} sources updated from OpenAlex",
+            [f"suggestions: {len(rep.suggestions)}", f"internal citations: {len(rep.internal)}"],
+        )
+
+
+@app.command()
+def graph(
+    limit: int = typer.Option(15, "--limit", help="Candidates per kind in the report"),
+    stale_years: int = typer.Option(5, "--stale-years", help="Temporal gap threshold"),
+    store: str | None = StoreOpt,
+) -> None:
+    """Build kg/graph.json and reports/synapse-candidates.md (spec §10–13)."""
+    st = _store(store)
+    res = kg_mod.build(st, stale_years=stale_years)
+    out = st.root / "reports" / "synapse-candidates.md"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(kg_mod.render_candidates(res, limit), encoding="utf-8")
+    kinds = Counter(c.kind for c in res.candidates)
+    console.print(
+        f"nodes {res.nodes} · edges {res.edges} · claims {res.claims} "
+        f"(relations {res.relations}) · candidates "
+        + (", ".join(f"{k} {v}" for k, v in sorted(kinds.items())) or "0")
+    )
+    console.print(
+        f"[green]wrote[/green] {st.graph_file.relative_to(st.root)}, {out.relative_to(st.root)}"
+    )
+
+
+@app.command()
+def discover(
+    days: int = typer.Option(90, "--days", help="Look back this many days"),
+    per_seed: int = typer.Option(10, "--per-seed", help="Max results per seed paper/keyword"),
+    include_seen: bool = typer.Option(False, "--all", help="Also show works shown before"),
+    limit: int = typer.Option(40, "--limit"),
+    store: str | None = StoreOpt,
+) -> None:
+    """Find new papers to read (OpenAlex). Writes reports/discover-<date>.md."""
+    st = _store(store)
+    try:
+        res = discover_mod.discover(
+            st, _openalex(), days=days, per_seed=per_seed, include_seen=include_seen
+        )
+    except oa_mod.OpenAlexError as exc:
+        console.print(f"[red]error[/red] {exc}")
+        raise typer.Exit(1) from exc
+    out = st.root / "reports" / f"discover-{date.today().isoformat()}.md"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(discover_mod.render(res, limit), encoding="utf-8")
+    for msg in res.search_errors:
+        console.print("[yellow]keyword search unavailable[/yellow] " + escape(msg))
+    for h in res.hits[:10]:
+        console.print(
+            f"  {h.score:.0f} "
+            + escape(f"{h.info.get('title')} ({h.info.get('publication_date')}) — {h.reasons[0]}")
+        )
+    console.print(
+        f"seeds {res.seeds} · new candidates {len(res.hits)} · "
+        f"skipped (already in library) {res.skipped_known}"
+    )
+    console.print(f"[green]wrote[/green] {out.relative_to(st.root)}")
+    if not st.projects_file.exists():
+        console.print(
+            'tip: `sb project add "제목" --keywords ... --refs <DOI>` adds project-based alerts'
+        )
+    vault.append_log(
+        st,
+        "note",
+        f"discover: {len(res.hits)} candidates since {res.since}",
+        [f"report: `{out.relative_to(st.root)}`"],
+    )
 
 
 @app.command()
@@ -301,14 +496,16 @@ def project_add(
     title: str = typer.Argument(...),
     research_question: str | None = typer.Option(None, "--rq"),
     keywords: str | None = typer.Option(None, help="Comma-separated."),
+    refs: str | None = typer.Option(None, "--refs", help="Key reference DOIs, comma-separated"),
     store: str | None = StoreOpt,
 ) -> None:
-    """Register a personal research project used to prioritise ideas."""
+    """Register a personal research project used to prioritise ideas and alerts."""
     st = _store(store)
     proj = ResearchProject(
         title=title,
         research_question=research_question,
         keywords=[k.strip() for k in (keywords or "").split(",") if k.strip()],
+        important_references=[r.strip() for r in (refs or "").split(",") if r.strip()],
     )
     ProjectRepository(st).save(proj)
     console.print(f"[green]saved project[/green] {proj.project_id}: {proj.title}")
@@ -360,13 +557,23 @@ def zotero_sync(
     mode: str = ZoteroMode,
     group: str | None = ZoteroGroup,
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be imported"),
+    no_annotations: bool = typer.Option(
+        False, "--no-annotations", help="Skip importing PDF highlights and notes"
+    ),
     store: str | None = StoreOpt,
 ) -> None:
-    """Import Zotero items as sources (metadata + PDF). Safe to re-run."""
+    """Import Zotero items as sources (metadata + PDF + your highlights). Safe to re-run."""
     st = _store(store)
     client = _zotero_client(mode, group)
     try:
-        rep = zot.sync(st, client, collection=collection, tag=tag, dry_run=dry_run)
+        rep = zot.sync(
+            st,
+            client,
+            collection=collection,
+            tag=tag,
+            dry_run=dry_run,
+            annotations=not no_annotations,
+        )
     except zot.ZoteroError as exc:
         console.print(f"[red]error[/red] {exc}")
         raise typer.Exit(1) from exc
@@ -381,19 +588,30 @@ def zotero_sync(
         console.print(
             "[cyan]linked[/cyan] " + escape(f"{s.source_id}  {s.title}  (already registered)")
         )
+    for s in rep.annotations_updated:
+        console.print(
+            "[magenta]highlights[/magenta] "
+            + escape(f"{s.source_id}  {s.title}  ({s.annotation_count} annotations)")
+        )
     for title, reason in rep.skipped:
         console.print("[yellow]metadata only[/yellow] " + escape(f"{title} — {reason}"))
     console.print(
         f"\n{label} {len(rep.added)} · PDF attached {len(rep.text_attached)} · "
         f"linked {len(rep.linked)} · metadata only {len(rep.metadata_only)} · "
-        f"unchanged {rep.unchanged}"
+        f"unchanged {rep.unchanged} · highlights updated {len(rep.annotations_updated)}"
     )
-    changed = rep.added or rep.text_attached or rep.linked or rep.metadata_only
+    changed = (
+        rep.added or rep.text_attached or rep.linked or rep.metadata_only or rep.annotations_updated
+    )
     if not dry_run and changed:
         bullets = [f"added: `{s.source_id}` {s.title}" for s in rep.added]
         bullets += [f"pdf attached: `{s.source_id}` {s.title}" for s in rep.text_attached]
         bullets += [f"linked: `{s.source_id}` {s.title}" for s in rep.linked]
         bullets += [f"metadata only: `{s.source_id}` {s.title}" for s in rep.metadata_only]
+        bullets += [
+            f"highlights: `{s.source_id}` {s.title} ({s.annotation_count})"
+            for s in rep.annotations_updated
+        ]
         where = f"collection {collection}" if collection else "library"
         if tag:
             where += f", tag {tag}"

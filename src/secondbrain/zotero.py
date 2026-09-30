@@ -8,7 +8,10 @@ module reads items from Zotero and registers them like ``sb add`` does:
 * the PDF attachment is copied into ``raw/`` and parsed with page markers;
 * items without a PDF are registered as metadata-only (``needs_text``) and get
   their text automatically on a later sync once a PDF is attached in Zotero;
-* re-running the sync is safe: items are matched by Zotero key, then DOI/title.
+* re-running the sync is safe: items are matched by Zotero key, then DOI/title;
+* the user's PDF highlights and notes are written to
+  ``structured/<id>.annotations.md``; if they change after the agent compiled
+  the source, it shows up in ``sb pending`` again.
 
 Two backends, same JSON format (Zotero Web API v3):
 
@@ -24,6 +27,7 @@ Nothing is ever written back to Zotero.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import tempfile
@@ -289,6 +293,7 @@ class SyncReport:
     linked: list[Source] = field(default_factory=list)  # existing source matched by DOI/title
     unchanged: int = 0
     skipped: list[tuple[str, str]] = field(default_factory=list)  # (title, reason)
+    annotations_updated: list[Source] = field(default_factory=list)
 
 
 def sync(
@@ -297,6 +302,7 @@ def sync(
     collection: str | None = None,
     tag: str | None = None,
     dry_run: bool = False,
+    annotations: bool = True,
 ) -> SyncReport:
     report = SyncReport()
     repo = SourceRepository(store)
@@ -315,49 +321,133 @@ def sync(
             if existing is None:
                 existing = repo.find_duplicate(Source(source_id="_probe", **meta))
 
+            if dry_run:
+                if existing is None:
+                    report.added.append(Source(source_id="(dry-run)", **meta))
+                else:
+                    report.unchanged += 1
+                continue
+
+            pdf = _pick_pdf(client.children(item["key"]))
+            source: Source | None = None
+
             if existing is not None and existing.local_file:
-                if existing.zotero_key is None and not dry_run:
+                source = existing
+                if existing.zotero_key is None:
                     _link(repo, existing, meta)
                     report.linked.append(existing)
                 else:
                     report.unchanged += 1
-                continue
-
-            if dry_run:
-                report.added.append(Source(source_id="(dry-run)", **meta))
-                continue
-
-            pdf = _pick_pdf(client.children(item["key"]))
-            path = client.pdf_path(pdf, workdir) if pdf else None
-
-            if existing is not None:  # metadata-only before; maybe the PDF arrived now
-                if existing.zotero_key is None:
-                    _link(repo, existing, meta)
-                if path:
-                    report.text_attached.append(agent.attach_file(existing, path))
-                else:
-                    report.unchanged += 1
-                continue
-
-            if path:
-                res = agent.ingest_file(
-                    path,
-                    source_type=meta["source_type"],
-                    title=meta["title"] or title,
-                    metadata=meta,
-                )
-                (report.linked if res.is_duplicate else report.added).append(res.source)
-                if res.is_duplicate and res.source.zotero_key is None:
-                    _link(repo, res.source, meta)
             else:
-                src = Source(source_id=f"src-{_new_id()}", **meta)
-                res = agent.ingest_metadata_only(src)
-                report.metadata_only.append(res.source)
-                if pdf is None:
-                    report.skipped.append((title, "no PDF attachment in Zotero"))
+                path = client.pdf_path(pdf, workdir) if pdf else None
+                if existing is not None:  # metadata-only before; maybe the PDF arrived now
+                    source = existing
+                    if existing.zotero_key is None:
+                        _link(repo, existing, meta)
+                    if path:
+                        source = agent.attach_file(existing, path)
+                        report.text_attached.append(source)
+                    else:
+                        report.unchanged += 1
+                elif path:
+                    res = agent.ingest_file(
+                        path,
+                        source_type=meta["source_type"],
+                        title=meta["title"] or title,
+                        metadata=meta,
+                    )
+                    source = res.source
+                    (report.linked if res.is_duplicate else report.added).append(source)
+                    if res.is_duplicate and source.zotero_key is None:
+                        _link(repo, source, meta)
                 else:
-                    report.skipped.append((title, "PDF attachment not available locally"))
+                    res = agent.ingest_metadata_only(Source(source_id=f"src-{_new_id()}", **meta))
+                    report.metadata_only.append(res.source)
+                    reason = (
+                        "no PDF attachment in Zotero"
+                        if pdf is None
+                        else "PDF attachment not available locally"
+                    )
+                    report.skipped.append((title, reason))
+
+            if annotations and pdf is not None and source is not None and source.local_file:
+                if _sync_annotations(store, repo, client, source, pdf):
+                    report.annotations_updated.append(source)
     return report
+
+
+# --- annotations (the user's own highlights and notes) ------------------------
+
+ANNOTATION_TYPES = {"highlight", "underline", "note", "text", "image", "ink"}
+
+
+def fetch_annotations(client: ZoteroClient, attachment_key: str) -> list[dict]:
+    rows = [
+        a["data"]
+        for a in client.children(attachment_key)
+        if a["data"].get("itemType") == "annotation"
+        and a["data"].get("annotationType") in ANNOTATION_TYPES
+    ]
+    return sorted(rows, key=lambda a: a.get("annotationSortIndex") or "")
+
+
+def _page_of(a: dict) -> str:
+    label = (a.get("annotationPageLabel") or "").strip()
+    if label:
+        return label
+    idx = (a.get("annotationSortIndex") or "").split("|")[0]
+    return str(int(idx) + 1) if idx.isdigit() else "?"
+
+
+def render_annotations(source: Source, rows: list[dict]) -> str:
+    lines = [
+        f"<!-- source_id: {source.source_id} | zotero: {source.zotero_key} | "
+        f"annotations: {len(rows)} -->",
+        "<!-- 사용자가 Zotero에서 직접 남긴 하이라이트와 메모입니다. sb zotero sync가 덮어씁니다. "
+        "하이라이트 문구는 원문 인용, '내 메모'는 사용자의 의견(personal_note)입니다. -->",
+        "",
+    ]
+    for i, a in enumerate(rows, 1):
+        kind = a.get("annotationType")
+        color = a.get("annotationColor") or ""
+        tags = [t["tag"] for t in a.get("tags") or [] if t.get("tag")]
+        head = f"## A{i} · p.{_page_of(a)} · {kind}"
+        if color:
+            head += f" · {color}"
+        lines.append(head)
+        text = " ".join((a.get("annotationText") or "").split())
+        if text:
+            lines.append(f'> "{text}"')
+        comment = (a.get("annotationComment") or "").strip()
+        if comment:
+            lines.append(f"- 내 메모: {comment}")
+        if tags:
+            lines.append(f"- 태그: {', '.join(tags)}")
+        if kind in ("image", "ink") and not text:
+            lines.append("- (그림/필기 주석 — 내용은 Zotero에서 확인)")
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _sync_annotations(
+    store: StoreConfig, repo: SourceRepository, client: ZoteroClient, source: Source, pdf: dict
+) -> bool:
+    """Write structured/<id>.annotations.md. Returns True if the content changed."""
+    rows = fetch_annotations(client, pdf["key"])
+    if not rows and not source.annotations_file:
+        return False
+    text = render_annotations(source, rows)
+    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+    if digest == source.annotations_hash:
+        return False
+    out = store.structured / f"{source.source_id}.annotations.md"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text, encoding="utf-8")
+    source.annotations_file = str(out.relative_to(store.root))
+    source.annotation_count = len(rows)
+    source.annotations_hash = digest
+    repo.save(source)
+    return True
 
 
 def _link(repo: SourceRepository, source: Source, meta: dict) -> None:

@@ -19,6 +19,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "fpdf2>=2.7",
     "ruff>=0.4",
     "mypy>=1.10",
 ]

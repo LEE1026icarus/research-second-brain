@@ -138,7 +138,7 @@ class IngestionAgent:
         out.parent.mkdir(parents=True, exist_ok=True)
         header = (
             f"<!-- source_id: {source.source_id} | parser: {doc.parser} | "
-            f"raw: {source.local_file} -->\n"
+            f"raw: {source.local_file} | page numbers: {doc.numbering} -->\n"
             "<!-- 기계 파싱 결과입니다. 표·수식·2단 편집은 깨졌을 수 있으니 "
             "필요하면 raw 원본을 확인하세요. -->\n\n"
         )

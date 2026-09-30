@@ -46,7 +46,7 @@ class WikiPage:
         title_m = re.match(r"\s*#\s+(.+)", body)
         if title_m:
             title = title_m.group(1).strip()
-            body = body[title_m.end():]
+            body = body[title_m.end() :]
 
         sections: list[tuple[str, str]] = []
         # Split on H2 headings.
