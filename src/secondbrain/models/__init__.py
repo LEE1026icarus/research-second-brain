@@ -3,8 +3,8 @@
 The models mirror the spec's three-layer separation (spec §2.1):
 
 * :class:`Source`          -> raw + metadata bookkeeping
-* :class:`PaperExtraction` -> the structured source layer
-* wiki pages (markdown)    -> the synthesized knowledge layer
+* ``structured/<id>.md``   -> parsed full text with page markers (for the LLM agent)
+* wiki pages (markdown)    -> written by the LLM agent following AGENTS.md
 
 plus the knowledge graph (:class:`Node`, :class:`Edge`, :class:`Claim`),
 research :class:`Idea` candidates, and personal :class:`ResearchProject` context.
@@ -14,6 +14,7 @@ from .claim import Claim
 from .enums import (
     SOURCE_TYPE_TO_EVIDENCE,
     AccessStatus,
+    CompileStatus,
     Direction,
     EdgeType,
     Epistemic,
@@ -27,7 +28,6 @@ from .enums import (
     UpdateEffect,
     WikiPageType,
 )
-from .extraction import PaperExtraction
 from .graph import Edge, Node
 from .idea import Idea
 from .project import ResearchProject
@@ -36,6 +36,7 @@ from .source import Source
 
 __all__ = [
     "AccessStatus",
+    "CompileStatus",
     "Claim",
     "Direction",
     "Edge",
@@ -48,7 +49,6 @@ __all__ = [
     "KnowledgeLayer",
     "Node",
     "NodeType",
-    "PaperExtraction",
     "Provenance",
     "ResearchProject",
     "Significance",

@@ -1,100 +1,62 @@
 # Architecture
 
-## Layers (spec §2.1)
-
-The system strictly separates three layers of knowledge and never lets a
-higher layer mutate a lower one.
+## 원칙: 이해는 LLM, 확인은 코드
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ WIKI KNOWLEDGE   store/wiki/*.md   synthesized, cross-linked  │  ← generated
-├─────────────────────────────────────────────────────────────┤
-│ STRUCTURED       store/structured/*.json   extracted fields   │  ← generated
-├─────────────────────────────────────────────────────────────┤
-│ RAW              store/raw/*   original bytes (immutable)     │  ← never modified
-└─────────────────────────────────────────────────────────────┘
+            사용자 ──(자료, 질문, 검토)──┐
+                                        ▼
+ inbox/ ──sb add──▶ raw/ + structured/ ──읽기──▶ LLM 에이전트 ──쓰기──▶ wiki/, ideas/
+                    (보존·중복·파싱)             (AGENTS.md 규칙)          │
+                                                     ▲                    │
+                                     sb index / sb lint / sb done ◀───────┘
+                                     (목록·검사·기록 — 틀리면 에이전트가 고침)
 ```
 
-Bookkeeping (`Source` records, the graph, projects) lives in `store/index/` and
-`store/kg/`. Research **ideas** live in `store/ideas/` and are deliberately kept
-out of the wiki so speculation is never mistaken for confirmed knowledge
-(spec §4, §15).
+- 에이전트는 [`AGENTS.md`](../AGENTS.md)를 따릅니다. 페이지 형식, 출처 표기, 증분 업데이트 판정, 검토 대상, Ingest·Query·Lint·Idea 절차가 모두 이 파일에 있습니다.
+- 코드는 지식을 쓰지 않습니다. 에이전트가 쓴 결과를 목록으로 만들고, 기록하고, 검사합니다.
 
-## Package map
+## 계층 (요구사항 §2.1)
+
+| 계층 | 위치 | 작성 |
+|---|---|---|
+| Raw Source | `raw/` | `sb add` (복사만, 수정 금지) |
+| 파싱 텍스트 | `structured/<id>.md` (`<!-- page N -->`) | `sb add` |
+| Structured Source | `wiki/papers/`, `wiki/sources/` (원문 사실만, 쪽 번호 필수) | 에이전트 |
+| Wiki Knowledge | `wiki/concepts/` 등 (여러 자료 종합, 모든 항목에 출처) | 에이전트 |
+| Idea | `ideas/` (Evidence·Interpretation·Speculation 구분) | 에이전트 |
+
+## 코드 구성
 
 ```
 src/secondbrain/
-├── config.py            StoreConfig + path resolution (SECOND_BRAIN_STORE / ./store)
-├── models/              Pydantic models = the shared vocabulary
-│   ├── enums.py         SourceType, EvidenceLevel, UpdateEffect, NodeType, EdgeType, …
-│   ├── provenance.py    Provenance (source → title/doi/page/quote)
-│   ├── source.py        Source (metadata §4 + dedup fingerprints §21)
-│   ├── extraction.py    PaperExtraction (the §5 field set)
-│   ├── claim.py         Claim (subject→object, direction, significance §12)
-│   ├── graph.py         Node / Edge (§10, §11)
-│   ├── idea.py          Idea (§14 template, §16 lifecycle, §19 epistemic split)
-│   └── project.py       ResearchProject (§29)
-├── store/repository.py  JSON persistence (Source/Extraction/Graph/Project repos)
-├── agents/
-│   ├── ingestion.py     IngestionAgent  – collect, hash, dedup, preserve raw
-│   └── extraction.py    ExtractionAgent + Extractor protocol + HeuristicPaperExtractor
-├── wiki/
-│   ├── page.py          WikiPage (frontmatter + H2 sections + wikilinks)
-│   ├── store.py         WikiStore (locate/load/save by page type)
-│   ├── templates.py     Canonical section skeletons (§8, §9)
-│   └── agent.py         WikiAgent – the incremental update engine (§7)
-├── pipeline/            IngestPipeline – orchestrates the §34 flow
-├── search.py            keyword_search (§25)
-├── digest.py            build_digest (§27)
-└── cli.py               `sb` command-line interface
+├── cli.py              `sb` 명령
+├── parsing.py          파일 → 쪽별 텍스트 (pypdf, text, html; 파서 추가 지점)
+├── agents/ingestion.py 등록: 해시, 중복 탐지, raw 복사, structured 생성, 상태 pending
+├── vault.py            index.md 생성, log.md 기록, lint, 검색
+├── store/repository.py sources.json, projects.json, graph.json
+├── models/             Source(상태 포함), Claim, Node/Edge, Idea, ResearchProject, enums
+├── wiki/page.py        frontmatter/절 파싱 도우미
+└── config.py           볼트 경로
 ```
 
-## Ingest data flow (spec §7, §34)
+## `sb lint` 검사 항목
 
-```
-sb ingest FILE
-   │
-   ▼
-IngestionAgent.ingest_file
-   • sha256 hash, dedup via SourceRepository.find_duplicate (DOI / hash / URL / title)
-   • copy raw bytes to store/raw/<id><ext>   (original untouched)
-   • persist Source with evidence_level derived from source_type
-   │
-   ▼
-ExtractionAgent.extract
-   • read_source_text (pypdf for PDF; text for md/txt/html)
-   • Extractor.extract → PaperExtraction (best-effort; missing = empty, never fabricated)
-   • persist store/structured/<id>.json
-   │
-   ▼
-WikiAgent.integrate
-   • write/update paper page (frontmatter + sectioned body + provenance)
-   • detect relevant concepts → update concept pages (append with citations)
-   • classify UpdateEffect (strengthen/extend/contradict/…)
-   • update topic overview
-   • turn "future work" into open-question pages
-   • returns WikiUpdate (feeds the digest)
-```
+| 코드 | 수준 | 내용 |
+|---|---|---|
+| `frontmatter` | error | frontmatter 없음, YAML 오류, `type`/`title` 누락 |
+| `broken-link` | error | 존재하지 않는 페이지로의 링크 |
+| `idea-in-wiki` | error | `wiki/` 안의 아이디어 페이지 (§15) |
+| `idea-without-source` | error | 근거 자료 링크가 없는 아이디어 (§19) |
+| `missing-source-page` | error | compiled인데 자료 페이지가 없음 |
+| `uncited` | warn | 종합 페이지의 목록 항목에 자료 링크가 없음 (§2.3) |
+| `claim-without-page` | warn | 쪽·절 표시가 없는 Claim |
+| `unconnected-source` | warn | 어떤 개념·이론·방법·Overview에서도 링크되지 않은 자료 페이지 |
+| `orphan` | warn | 들어오는 링크가 없는 페이지 |
+| `needs-text` | warn | 텍스트를 뽑지 못한 자료 (스캔본 등) |
+| `needs-review` / `pending-source` / `index-stale` | info | 검토 대기, 미반영 자료, 목록 갱신 필요 |
 
-## Extension points (Phases 2–6)
-
-The design keeps later phases as *additive* plug-ins:
-
-- **LLM extraction** — implement the `Extractor` protocol and pass it to
-  `ExtractionAgent` / `IngestPipeline`. No caller changes.
-- **Knowledge Graph** — `GraphRepository`, `Node`, `Edge`, and `Claim` already
-  exist; a `GraphAgent` builds nodes/edges from extractions after wiki
-  integration.
-- **Synapse / Idea engines** — consume the graph and write `Idea` objects into
-  `store/ideas/`; models and lifecycle states are already defined.
-- **Automation** — Gmail/Scholar ingest and a folder watcher feed the same
-  `IngestPipeline` (the `sb ingest-dir` command is the manual equivalent).
-- **Interfaces** — an MCP/API server exposes read/search over the same
-  repositories; the store is plain files so a UI can read it directly.
-
-## Why plain files
-
-Markdown + JSON on disk makes the whole knowledge base **Git-versionable**
-(spec §22) — every change is a diff showing what changed and (via provenance)
-which source caused it — and **Obsidian-compatible** (spec §23) with
-frontmatter, tags, and `[[wikilinks]]`.
+## 앞으로 붙일 부분
+- **파서:** `parsing.py`의 `_PARSERS`에 OpenDataLoader PDF, Docling, HWP 파서를 추가하면 호출부 변경 없이 적용됩니다.
+- **Knowledge Graph (Phase 3):** 논문 페이지의 `## Claims` 형식이 고정되어 있으므로, 이를 파싱해 `kg/graph.json`의 Node/Edge를 만드는 명령을 추가합니다.
+- **자동화 (Phase 2):** Gmail·Scholar Alert, 폴더 감시는 `sb add`까지만 자동으로 하고, 반영은 에이전트가 합니다. 완전 자동이 필요하면 에이전트를 비대화형으로 실행합니다(예: Kiro CLI `--no-interactive`).
+- **MCP (Phase 6):** `vault.py`의 검색·lint·목록 함수를 MCP 도구로 노출합니다.

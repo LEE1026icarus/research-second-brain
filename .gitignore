@@ -20,6 +20,21 @@ venv/
 !/store/index/.gitkeep
 /store/kg/graph.json
 
+# Drop-folder for new sources (may contain copyrighted full texts)
+/inbox/*
+!/inbox/.gitkeep
+
+# Generated vault content (public repo: do not publish paper text).
+# Remove these lines if the repository is private and you want git history of the wiki.
+/store/wiki/**/*.md
+/store/ideas/**/*.md
+/store/index.md
+/store/log.md
+
+# Obsidian: keep only the shared link settings
+/store/.obsidian/*
+!/store/.obsidian/app.json
+
 # Test / scratch stores
 .tmpstore/
 .clitest/

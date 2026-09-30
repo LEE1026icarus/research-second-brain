@@ -1,11 +1,13 @@
-"""Ingestion Agent: collect and register a source (spec §17, §3, §21).
+"""Source registration: the deterministic part of ingest (spec §3, §21).
 
 Responsibilities:
-* preserve the raw bytes untouched under ``store/raw/`` (spec §2.1),
+* preserve the raw bytes untouched under ``raw/`` (spec §2.1),
 * compute a file hash and detect duplicates (spec §21),
-* create a :class:`Source` record with metadata + evidence level.
+* parse the text (with page markers) into ``structured/<id>.md``,
+* create a :class:`Source` record with status ``pending``.
 
-The agent never edits an original file.
+Reading, summarising, and integrating the source into the wiki is done by
+the LLM agent following ``AGENTS.md`` -- not by code.
 """
 
 from __future__ import annotations
@@ -19,10 +21,12 @@ from ..config import StoreConfig
 from ..models import (
     SOURCE_TYPE_TO_EVIDENCE,
     AccessStatus,
+    CompileStatus,
     EvidenceLevel,
     Source,
     SourceType,
 )
+from ..parsing import parse_file
 from ..store import SourceRepository
 
 # Map file extensions to a default source type (spec §3.1).
@@ -102,12 +106,32 @@ class IngestionAgent:
         shutil.copy2(src_path, dest)
         candidate.local_file = str(dest.relative_to(self.store.root))
 
+        self._write_text(candidate, dest)
         self.sources.save(candidate)
         return IngestResult(candidate)
+
+    def _write_text(self, source: Source, raw_path: Path) -> None:
+        """Parse the raw file into structured/<id>.md for the agent to read."""
+        doc = parse_file(raw_path)
+        if doc is None:
+            source.status = CompileStatus.NEEDS_TEXT
+            return
+        out = self.store.structured / f"{source.source_id}.md"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        header = (
+            f"<!-- source_id: {source.source_id} | parser: {doc.parser} | "
+            f"raw: {source.local_file} -->\n"
+            "<!-- 기계 파싱 결과입니다. 표·수식·2단 편집은 깨졌을 수 있으니 "
+            "필요하면 raw 원본을 확인하세요. -->\n\n"
+        )
+        out.write_text(header + doc.to_markdown() + "\n", encoding="utf-8")
+        source.text_file = str(out.relative_to(self.store.root))
+        source.pages = len(doc.pages)
 
     def ingest_metadata_only(self, source: Source) -> IngestResult:
         """Register a source we could not fetch full text for (spec §3.2)."""
         source.access_status = AccessStatus.METADATA_ONLY
+        source.status = CompileStatus.NEEDS_TEXT
         if source.evidence_level == EvidenceLevel.UNKNOWN:
             source.evidence_level = SOURCE_TYPE_TO_EVIDENCE.get(
                 source.source_type, EvidenceLevel.UNKNOWN

@@ -6,7 +6,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
-from .enums import AccessStatus, EvidenceLevel, SourceType
+from .enums import AccessStatus, CompileStatus, EvidenceLevel, SourceType
 
 
 class Source(BaseModel):
@@ -35,6 +35,13 @@ class Source(BaseModel):
     access_status: AccessStatus = AccessStatus.PENDING
     peer_reviewed: bool | None = None
     evidence_level: EvidenceLevel = EvidenceLevel.UNKNOWN
+
+    # --- LLM compile bookkeeping ---
+    status: CompileStatus = CompileStatus.PENDING
+    text_file: str | None = Field(default=None, description="Parsed text in structured/.")
+    pages: int | None = None
+    wiki_page: str | None = Field(default=None, description="Source page written by the agent.")
+    compiled_date: datetime | None = None
 
     # --- dedup fingerprints (spec §21) ---
     file_hash: str | None = None

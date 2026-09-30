@@ -1,4 +1,4 @@
-"""Persistence for sources, structured extractions, the graph, and projects.
+"""Persistence for sources, the graph, and projects.
 
 Everything is stored as plain JSON so the whole knowledge base stays
 diff-friendly and Git-versionable (spec §22). No database is required for
@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 
 from ..config import StoreConfig
-from ..models import Edge, Node, PaperExtraction, ResearchProject, Source
+from ..models import Edge, Node, ResearchProject, Source
 
 
 def _read_json(path: Path, default):
@@ -64,25 +64,6 @@ class SourceRepository:
             ):
                 return existing
         return None
-
-
-class ExtractionRepository:
-    """Stores :class:`PaperExtraction` as one JSON file per source."""
-
-    def __init__(self, store: StoreConfig) -> None:
-        self.store = store
-
-    def path_for(self, source_id: str) -> Path:
-        return self.store.structured / f"{source_id}.json"
-
-    def save(self, extraction: PaperExtraction) -> None:
-        _write_json(self.path_for(extraction.source_id), extraction.model_dump())
-
-    def get(self, source_id: str) -> PaperExtraction | None:
-        path = self.path_for(source_id)
-        if not path.exists():
-            return None
-        return PaperExtraction.model_validate(_read_json(path, {}))
 
 
 class GraphRepository:
