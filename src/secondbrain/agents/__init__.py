@@ -1,21 +1,10 @@
-"""Logical agent roles (spec §17).
+"""Deterministic helpers the LLM agent calls (spec §17).
 
-Phase 1 implements the first two roles fully:
-
-* :class:`IngestionAgent` -- collect and register sources.
-* :class:`ExtractionAgent` -- pull structured info from raw text.
-
-The Wiki Agent lives in :mod:`secondbrain.wiki`. Graph / Synapse / Idea /
-Reviewer agents are introduced in later phases against the same models.
+Understanding work (extraction, wiki writing, synthesis, ideas) is done by the
+LLM agent following ``AGENTS.md``. Code here only does what must be exact:
+registration, dedup, raw preservation, and text parsing.
 """
 
-from .extraction import ExtractionAgent, Extractor, HeuristicPaperExtractor
 from .ingestion import IngestionAgent, IngestResult
 
-__all__ = [
-    "ExtractionAgent",
-    "Extractor",
-    "HeuristicPaperExtractor",
-    "IngestionAgent",
-    "IngestResult",
-]
+__all__ = ["IngestionAgent", "IngestResult"]

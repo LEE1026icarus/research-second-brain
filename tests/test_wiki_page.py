@@ -4,10 +4,7 @@ from secondbrain.wiki.page import WikiPage, wikilink
 
 
 def test_roundtrip_frontmatter_and_sections():
-    text = (
-        "---\ntitle: Foo\ntags:\n- a\n---\n"
-        "# Foo\n\n## Summary\n\nhello\n\n## Notes\n\n- one\n"
-    )
+    text = "---\ntitle: Foo\ntags:\n- a\n---\n# Foo\n\n## Summary\n\nhello\n\n## Notes\n\n- one\n"
     page = WikiPage.parse(text)
     assert page.title == "Foo"
     assert page.frontmatter["title"] == "Foo"

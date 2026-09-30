@@ -6,7 +6,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
-from .enums import AccessStatus, EvidenceLevel, SourceType
+from .enums import AccessStatus, CompileStatus, EvidenceLevel, SourceType
 
 
 class Source(BaseModel):
@@ -24,6 +24,7 @@ class Source(BaseModel):
     organization: str | None = None
     publication: str | None = None
     publication_date: date | None = None
+    year: int | None = None
     ingestion_date: datetime = Field(default_factory=datetime.utcnow)
 
     doi: str | None = None
@@ -36,12 +37,41 @@ class Source(BaseModel):
     peer_reviewed: bool | None = None
     evidence_level: EvidenceLevel = EvidenceLevel.UNKNOWN
 
+    # --- LLM compile bookkeeping ---
+    status: CompileStatus = CompileStatus.PENDING
+    text_file: str | None = Field(default=None, description="Parsed text in structured/.")
+    pages: int | None = None
+    wiki_page: str | None = Field(default=None, description="Source page written by the agent.")
+    compiled_date: datetime | None = None
+
+    # --- reference manager (Zotero) ---
+    zotero_key: str | None = Field(default=None, description="Zotero item key.")
+    zotero_uri: str | None = Field(default=None, description="zotero://select/... link.")
+    citekey: str | None = Field(default=None, description="Citation key (Better BibTeX / Zotero).")
+    annotations_file: str | None = Field(default=None, description="User highlights/notes.")
+    annotation_count: int = 0
+    annotations_hash: str | None = None
+    annotations_compiled_hash: str | None = Field(
+        default=None, description="annotations_hash at the time the agent last compiled."
+    )
+
     # --- dedup fingerprints (spec §21) ---
     file_hash: str | None = None
+
+    @property
+    def annotations_changed(self) -> bool:
+        """Compiled source whose Zotero highlights/notes changed since the agent read them."""
+        return (
+            self.status == CompileStatus.COMPILED
+            and bool(self.annotations_hash)
+            and self.annotations_hash != self.annotations_compiled_hash
+        )
 
     def fingerprints(self) -> dict[str, str]:
         """Return the identity signals used for duplicate detection."""
         fp: dict[str, str] = {}
+        if self.zotero_key:
+            fp["zotero"] = self.zotero_key
         if self.doi:
             fp["doi"] = self.doi.lower().strip()
         if self.file_hash:

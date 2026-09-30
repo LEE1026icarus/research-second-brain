@@ -92,6 +92,15 @@ class AccessStatus(str, Enum):
     PENDING = "pending"
 
 
+class CompileStatus(str, Enum):
+    """Whether the LLM agent has integrated a registered source into the wiki."""
+
+    PENDING = "pending"  # registered + parsed, waiting for the agent
+    COMPILED = "compiled"  # agent wrote/updated wiki pages for it
+    NEEDS_TEXT = "needs_text"  # no usable text (scan, metadata-only): parse/OCR first
+    SKIPPED = "skipped"  # deliberately not integrated (reason in log.md)
+
+
 class UpdateEffect(str, Enum):
     """How a new source affects an existing piece of knowledge (spec §2.2)."""
 
@@ -179,6 +188,7 @@ class WikiPageType(str, Enum):
     """Wiki page categories (spec §6)."""
 
     PAPER = "papers"
+    SOURCE = "sources"  # non-paper sources: reports, news, web, notes
     CONCEPT = "concepts"
     THEORY = "theories"
     METHOD = "methods"
@@ -189,6 +199,7 @@ class WikiPageType(str, Enum):
     TOPIC = "topics"
     OVERVIEW = "overviews"
     QUESTION = "questions"
+    SYNTHESIS = "synthesis"  # query answers / analyses filed back into the wiki
 
 
 class IdeaKind(str, Enum):
