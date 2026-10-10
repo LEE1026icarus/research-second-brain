@@ -100,6 +100,12 @@ store/
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — components, data flow, extension points.
 - [`docs/REQUIREMENTS_MAP.md`](docs/REQUIREMENTS_MAP.md) — every spec section (§1–§34) mapped to code and phase.
 
+**Korean papers** are supported by the heuristic extractor (요약·주제어·한계 및 향후 연구
+sections, Korean author lines, `제N권` volume headers). Theories and methods are recognized
+through a bilingual gazetteer in `src/secondbrain/vocab.py` (e.g. `기대 불일치` →
+*Expectancy-Disconfirmation Theory*), so Korean and English sources share the same wiki pages.
+Extend that file as your library grows.
+
 The agents mirror the spec's logical roles (§17): **Ingestion**, **Extraction**,
 **Wiki**, and (scaffolded for later phases) **Graph**, **Synapse**, **Idea**,
 **Reviewer**. Extraction is pluggable via an `Extractor` protocol so an

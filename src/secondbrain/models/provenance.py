@@ -24,7 +24,13 @@ class Provenance(BaseModel):
     quote: str | None = Field(default=None, description="Verbatim quote supporting the claim.")
 
     def short_ref(self) -> str:
-        """A compact human-readable citation like 'Smith (2021)'."""
-        who = self.authors[0].split(",")[0] if self.authors else (self.title or self.source_id)
+        """A compact citation like 'Smith et al. (2021)' or '최윤진 외 (2020)'."""
+        if self.authors:
+            who = self.authors[0].split(",")[0].strip()
+            if len(self.authors) > 1:
+                korean = any("가" <= ch <= "힣" for ch in who)
+                who += " 외" if korean else " et al."
+        else:
+            who = self.title or self.source_id
         year = f" ({self.year})" if self.year else ""
         return f"{who}{year}"

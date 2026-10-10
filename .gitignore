@@ -20,6 +20,10 @@ venv/
 !/store/index/.gitkeep
 /store/kg/graph.json
 
+# Drop-folder for new sources (may contain copyrighted full texts)
+/inbox/*
+!/inbox/.gitkeep
+
 # Test / scratch stores
 .tmpstore/
 .clitest/
